@@ -21,6 +21,7 @@ namespace RunCatLite
         private readonly CustomToolStripMenuItem systemInfoMenu = new();
         private readonly CustomToolStripMenuItem runnersMenu;
         private readonly NotifyIcon notifyIcon = new();
+        private readonly ContextMenuStrip contextMenuStrip;
         private readonly List<Icon> icons = [];
         private readonly object iconLock = new();
         private int current = 0;
@@ -52,9 +53,8 @@ namespace RunCatLite
             systemInfoMenu.Text = "-\n-\n-\n-\n-";
             systemInfoMenu.Enabled = false;
 
-            // 角色菜单 - 在打开时动态刷新
+            // 角色菜单
             runnersMenu = new CustomToolStripMenuItem("角色");
-            runnersMenu.DropDownOpening += (sender, e) => RefreshRunnersMenu();
 
             var themeMenu = new CustomToolStripMenuItem("外观");
             themeMenu.SetupSubMenusFromEnum<Theme>(
@@ -123,7 +123,7 @@ namespace RunCatLite
             var exitMenu = new CustomToolStripMenuItem("退出");
             exitMenu.Click += (sender, e) => onExit();
 
-            var contextMenuStrip = new ContextMenuStrip(new Container());
+            contextMenuStrip = new ContextMenuStrip(new Container());
             contextMenuStrip.Items.AddRange(new ToolStripItem[]
             {
                 systemInfoMenu,
@@ -135,7 +135,15 @@ namespace RunCatLite
                 new ToolStripSeparator(),
                 exitMenu
             });
-            contextMenuStrip.Renderer = new ContextMenuRenderer();
+
+            // 应用现代化渲染器
+            UpdateMenuRenderer();
+
+            // 初始刷新角色菜单（确保有子菜单项以显示箭头）
+            RefreshRunnersMenu();
+
+            // 每次右键打开菜单时刷新角色列表
+            contextMenuStrip.Opening += (sender, e) => RefreshRunnersMenu();
 
             SetIcons(getSystemTheme(), getManualTheme(), getRunner());
 
@@ -143,6 +151,16 @@ namespace RunCatLite
             notifyIcon.Icon = icons.Count > 0 ? icons[0] : null;
             notifyIcon.Visible = true;
             notifyIcon.ContextMenuStrip = contextMenuStrip;
+        }
+
+        /// <summary>
+        /// 更新菜单渲染器以适应当前主题
+        /// </summary>
+        internal void UpdateMenuRenderer()
+        {
+            var actualTheme = getManualTheme() == Theme.System ? getSystemTheme() : getManualTheme();
+            var isDark = actualTheme == Theme.Dark;
+            contextMenuStrip.Renderer = new ModernMenuRenderer(isDark);
         }
 
         /// <summary>

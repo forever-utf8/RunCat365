@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net9.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -29,6 +29,9 @@
 
     <!-- Optimization settings -->
     <PublishReadyToRun>true</PublishReadyToRun>
+
+    <!-- Embed config into exe, don't generate separate .dll.config file -->
+    <GenerateAppConfigFileForPublish>false</GenerateAppConfigFileForPublish>
   </PropertyGroup>
 
   <ItemGroup>

@@ -5,7 +5,7 @@
 set -e
 
 # 配置
-DOTNET_VERSION="8.0"
+DOTNET_VERSION="9.0"
 PROJECT_NAME="RunCat-Lite"
 PROJECT_DIR="RunCat365"
 OUTPUT_BASE="dist"
@@ -48,7 +48,7 @@ check_podman() {
 build_platform() {
     local RID=$1
     local PLATFORM_DESC="${PLATFORMS[$RID]}"
-    local TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    local TIMESTAMP=$(date +%Y%m%d%H%M%S)
     local OUTPUT_DIR="${OUTPUT_BASE}/${PROJECT_NAME}_${RID}_net${DOTNET_VERSION}_${TIMESTAMP}"
 
     log_info "开始构建: ${PLATFORM_DESC} (${RID})"
@@ -79,7 +79,9 @@ build_platform() {
             -p:PublishReadyToRun=false \
             -p:EnableWindowsTargeting=true \
             -p:DebugType=None \
-            -p:DebugSymbols=false
+            -p:DebugSymbols=false \
+            -p:BaseIntermediateOutputPath=/tmp/obj/ \
+            -p:BaseOutputPath=/tmp/bin/
 
     # 创建版本信息文件
     cat > "${OUTPUT_DIR}/BUILD_INFO.txt" << EOF
@@ -94,6 +96,10 @@ EOF
     # 复制 runners 目录到输出
     cp -r "${PROJECT_DIR}/resources/runners" "${OUTPUT_DIR}/"
     log_info "已复制 runners 目录"
+
+    # 删除多余的 .dll.config 文件（默认值已嵌入到代码中）
+    # rm -f "${OUTPUT_DIR}"/*.dll.config
+    # log_info "已清理多余的配置文件"
 
     # 使用 podman unshare 修复文件权限
     # 在 unshare 命名空间中，UID 0 映射回宿主用户

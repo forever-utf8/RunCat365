@@ -135,6 +135,7 @@ namespace RunCatLite
             {
                 var systemTheme = GetSystemTheme();
                 contextMenuManager.SetIcons(systemTheme, manualTheme, runner);
+                contextMenuManager.UpdateMenuRenderer();
             }
         }
 
@@ -166,6 +167,7 @@ namespace RunCatLite
             manualTheme = t;
             UserSettings.Default.Theme = manualTheme.ToString();
             UserSettings.Default.Save();
+            contextMenuManager.UpdateMenuRenderer();
         }
 
         private void ChangeFPSMaxLimit(FPSMaxLimit f)
