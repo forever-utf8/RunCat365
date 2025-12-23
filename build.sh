@@ -48,8 +48,14 @@ check_podman() {
 build_platform() {
     local RID=$1
     local PLATFORM_DESC="${PLATFORMS[$RID]}"
-    local TIMESTAMP=$(date +%Y%m%d%H%M%S)
-    local OUTPUT_DIR="${OUTPUT_BASE}/${PROJECT_NAME}_${RID}_net${DOTNET_VERSION}_${TIMESTAMP}"
+
+    # 从 csproj 中提取版本号
+    local VERSION=$(grep -oP '(?<=<Version>)[^<]+' "${PROJECT_DIR}/${PROJECT_DIR}.csproj" | head -1)
+    if [[ -z "$VERSION" ]]; then
+        VERSION="1.0.0"
+    fi
+
+    local OUTPUT_DIR="${OUTPUT_BASE}/${PROJECT_NAME}_${RID}_net${DOTNET_VERSION}_v${VERSION}"
 
     log_info "开始构建: ${PLATFORM_DESC} (${RID})"
 

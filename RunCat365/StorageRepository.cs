@@ -26,8 +26,8 @@ namespace RunCatLite
         {
             return drive switch
             {
-                Drive.C => "C Drive",
-                Drive.D => "D Drive",
+                Drive.C => "C",
+                Drive.D => "D",
                 _ => "",
             };
         }
