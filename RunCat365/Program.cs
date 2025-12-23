@@ -133,8 +133,8 @@ namespace RunCatLite
         {
             if (e.Category == UserPreferenceCategory.General)
             {
-                var systemTheme = GetSystemTheme();
-                contextMenuManager.SetIcons(systemTheme, manualTheme, runner);
+                // 主题切换只更新菜单渲染器，不再影响图标
+                // 因为现在使用统一的 PNG/GIF 动画，不区分 light/dark
                 contextMenuManager.UpdateMenuRenderer();
             }
         }

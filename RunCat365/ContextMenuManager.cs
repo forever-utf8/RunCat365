@@ -67,7 +67,8 @@ namespace RunCatLite
                         (string? s, out Theme t) => Enum.TryParse(s, out t),
                         t => setManualTheme(t)
                     );
-                    SetIcons(getSystemTheme(), getManualTheme(), getRunner());
+                    // 主题切换不再影响图标，因为现在使用统一的 PNG/GIF 动画
+                    // SetIcons(getRunner()); // 如果需要可以取消注释
                 },
                 t => getManualTheme() == t,
                 _ => null
@@ -145,7 +146,7 @@ namespace RunCatLite
             // 每次右键打开菜单时刷新角色列表
             contextMenuStrip.Opening += (sender, e) => RefreshRunnersMenu();
 
-            SetIcons(getSystemTheme(), getManualTheme(), getRunner());
+            SetIcons(getRunner());
 
             notifyIcon.Text = "-";
             notifyIcon.Icon = icons.Count > 0 ? icons[0] : null;
@@ -172,19 +173,17 @@ namespace RunCatLite
 
             var runners = RunnerManager.GetAvailableRunners();
             var currentRunner = getRunner();
-            var themeName = GetThemeName();
 
-            foreach (var runnerName in runners)
+            foreach (var runner in runners)
             {
-                var displayName = RunnerManager.GetDisplayName(runnerName);
-                var menuItem = new CustomToolStripMenuItem(displayName)
+                var menuItem = new CustomToolStripMenuItem(runner.DisplayName)
                 {
-                    Checked = (runnerName == currentRunner),
-                    Tag = runnerName
+                    Checked = (runner.FileName == currentRunner),
+                    Tag = runner.FileName
                 };
 
-                // 设置缩略图
-                var thumbnail = RunnerManager.GetThumbnail(runnerName, themeName);
+                // 设置缩略图（第一帧）
+                var thumbnail = RunnerManager.GetThumbnail(runner.FileName);
                 if (thumbnail != null)
                 {
                     menuItem.Image = thumbnail;
@@ -202,7 +201,7 @@ namespace RunCatLite
                         item.Checked = true;
 
                         setRunner(selectedRunner);
-                        SetIcons(getSystemTheme(), getManualTheme(), selectedRunner);
+                        SetIcons(selectedRunner);
                     }
                 };
 
@@ -219,11 +218,7 @@ namespace RunCatLite
             }
         }
 
-        private string GetThemeName()
-        {
-            var actualTheme = getManualTheme() == Theme.System ? getSystemTheme() : getManualTheme();
-            return actualTheme == Theme.Light ? "light" : "dark";
-        }
+        // GetThemeName 方法已移除，不再需要按主题加载不同图标
 
         private static void HandleMenuItemSelection<T>(
             ToolStripMenuItem parentMenu,
@@ -245,10 +240,9 @@ namespace RunCatLite
             }
         }
 
-        internal void SetIcons(Theme systemTheme, Theme manualTheme, string runnerName)
+        internal void SetIcons(string runnerName)
         {
-            var themeName = (manualTheme == Theme.System ? systemTheme : manualTheme) == Theme.Light ? "light" : "dark";
-            var list = RunnerManager.LoadIcons(runnerName, themeName);
+            var list = RunnerManager.LoadFrames(runnerName);
 
             lock (iconLock)
             {

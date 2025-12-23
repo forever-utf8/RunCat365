@@ -46,26 +46,36 @@
 
 ## 🎨 自定义角色
 
-在 `runners/` 目录下创建新文件夹，放入图标文件即可：
+在 `runners/` 目录下放入动画文件即可：
 
 ```
 runners/
-├── cat/                    # 内置角色
-│   ├── light_0.ico
-│   ├── light_1.ico
-│   ├── ...
-│   ├── dark_0.ico
-│   └── ...
-├── myrunner/               # 自定义角色
-│   ├── light_0.ico         # 浅色主题帧 0
-│   ├── light_1.ico         # 浅色主题帧 1
-│   ├── dark_0.ico          # 深色主题帧 0
-│   └── dark_1.ico          # 深色主题帧 1
+├── 00_cat.png              # APNG 动画文件
+├── 01_cat_b.png
+├── 02_cat_c.png
+├── 03_cat_tail.png
+├── 10_mock_nyan_cat.png
+└── my_custom.gif           # 也支持 GIF 格式
 ```
 
-**命名格式**: `{themeName}_{frameIndex}.ico`
-- `themeName`: `light` 或 `dark`
-- `frameIndex`: 从 0 开始的帧序号
+### 支持格式
+
+| 格式 | 说明 |
+|------|------|
+| **APNG** | 动画 PNG，推荐格式，支持透明背景和无损压缩 |
+| **GIF** | 传统 GIF 动画，自动提取所有帧 |
+| **PNG** | 静态 PNG，作为单帧显示 |
+
+### 命名规则
+
+- 文件名（不含扩展名）即为角色名称，直接显示在菜单中
+- 建议使用 `序号_名称.png` 格式便于排序，如 `00_cat.png`、`01_dog.gif`
+
+### 动画要求
+
+- 尺寸建议：宽度 36-112px，高度 36px（与任务栏高度匹配）
+- 透明背景：支持 RGBA 透明通道
+- 帧率：程序会根据 CPU 使用率动态调整播放速度
 
 每次打开右键菜单时程序会自动扫描 `runners/` 目录，新添加的角色会立即出现。
 

@@ -12,10 +12,25 @@
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 
+using QSoft.Apng;
+using System.Drawing.Imaging;
+
 namespace RunCatLite
 {
+    /// <summary>
+    /// 代表一个可用的角色（动画）
+    /// </summary>
+    internal class RunnerInfo
+    {
+        public string FileName { get; set; } = "";
+        public string FilePath { get; set; } = "";
+        public string DisplayName { get; set; } = "";
+    }
+
     internal static class RunnerManager
     {
+        private static readonly string[] SupportedExtensions = [".png", ".gif"];
+
         private static string GetRunnersPath()
         {
             return Path.Combine(AppContext.BaseDirectory, "runners");
@@ -23,128 +38,220 @@ namespace RunCatLite
 
         /// <summary>
         /// 扫描 runners 目录获取所有可用的角色列表
+        /// 返回文件名（不含扩展名）作为角色标识
         /// </summary>
-        internal static List<string> GetAvailableRunners()
+        internal static List<RunnerInfo> GetAvailableRunners()
         {
             var runnersPath = GetRunnersPath();
-            var runners = new List<string>();
+            var runners = new List<RunnerInfo>();
 
             if (!Directory.Exists(runnersPath))
                 return runners;
 
-            foreach (var dir in Directory.GetDirectories(runnersPath))
+            var files = Directory.GetFiles(runnersPath)
+                .Where(f => SupportedExtensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
+                .OrderBy(f => f)
+                .ToList();
+
+            foreach (var file in files)
             {
-                var runnerName = Path.GetFileName(dir);
-                // 检查目录中是否有 .ico 文件
-                if (Directory.GetFiles(dir, "*.ico").Length > 0)
+                var fileName = Path.GetFileNameWithoutExtension(file);
+                runners.Add(new RunnerInfo
                 {
-                    runners.Add(runnerName);
-                }
+                    FileName = fileName,
+                    FilePath = file,
+                    DisplayName = fileName  // 直接使用文件名作为显示名称
+                });
             }
 
             return runners;
         }
 
         /// <summary>
-        /// 获取角色的显示名称（首字母大写）
+        /// 加载动画的所有帧
+        /// 支持 APNG、GIF、静态 PNG
         /// </summary>
-        internal static string GetDisplayName(string runnerName)
+        internal static List<Icon> LoadFrames(string runnerName)
         {
-            if (string.IsNullOrEmpty(runnerName))
-                return "";
-            return char.ToUpper(runnerName[0]) + runnerName.Substring(1);
-        }
-
-        /// <summary>
-        /// 加载角色的图标帧列表
-        /// 文件命名格式: {themeName}_{i}.ico (例如: light_0.ico, dark_0.ico)
-        /// </summary>
-        internal static List<Icon> LoadIcons(string runnerName, string themeName)
-        {
-            var runnerDir = Path.Combine(GetRunnersPath(), runnerName);
+            var runnersPath = GetRunnersPath();
             var icons = new List<Icon>();
 
-            if (!Directory.Exists(runnerDir))
-                return icons;
-
-            // 加载 {themeName}_{i}.ico 格式的图标
-            int i = 0;
-            while (true)
+            // 查找匹配的文件
+            string? filePath = null;
+            foreach (var ext in SupportedExtensions)
             {
-                var iconPath = Path.Combine(runnerDir, $"{themeName}_{i}.ico");
-                if (File.Exists(iconPath))
+                var path = Path.Combine(runnersPath, runnerName + ext);
+                if (File.Exists(path))
                 {
-                    try
-                    {
-                        icons.Add(new Icon(iconPath));
-                    }
-                    catch { }
-                    i++;
-                }
-                else
-                {
+                    filePath = path;
                     break;
                 }
             }
 
-            // 如果没有找到，尝试加载所有 ico（按文件名排序）
-            if (icons.Count == 0)
-            {
-                var allIcos = Directory.GetFiles(runnerDir, "*.ico")
-                    .OrderBy(f => f)
-                    .ToList();
+            if (filePath == null)
+                return icons;
 
-                foreach (var file in allIcos)
+            try
+            {
+                var extension = Path.GetExtension(filePath).ToLowerInvariant();
+
+                if (extension == ".gif")
                 {
-                    try
-                    {
-                        icons.Add(new Icon(file));
-                    }
-                    catch { }
+                    icons = LoadGifFrames(filePath);
                 }
+                else if (extension == ".png")
+                {
+                    icons = LoadPngFrames(filePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error loading frames from {filePath}: {ex.Message}");
             }
 
             return icons;
         }
 
         /// <summary>
-        /// 获取角色的缩略图
+        /// 加载 GIF 动画帧
         /// </summary>
-        internal static Bitmap? GetThumbnail(string runnerName, string themeName)
+        private static List<Icon> LoadGifFrames(string filePath)
         {
-            var runnerDir = Path.Combine(GetRunnersPath(), runnerName);
-            if (!Directory.Exists(runnerDir))
-                return null;
+            var icons = new List<Icon>();
 
-            // 尝试匹配 {themeName}_0.ico
-            var iconPath = Path.Combine(runnerDir, $"{themeName}_0.ico");
+            using var image = Image.FromFile(filePath);
+            var dimension = new FrameDimension(image.FrameDimensionsList[0]);
+            int frameCount = image.GetFrameCount(dimension);
 
-            // 如果不存在，尝试第一个 ico 文件
-            if (!File.Exists(iconPath))
+            for (int i = 0; i < frameCount; i++)
             {
-                var allIcos = Directory.GetFiles(runnerDir, "*.ico")
-                    .OrderBy(f => f)
-                    .ToArray();
-
-                if (allIcos.Length > 0)
+                image.SelectActiveFrame(dimension, i);
+                var frame = new Bitmap(image);
+                var icon = BitmapToIcon(frame);
+                if (icon != null)
                 {
-                    iconPath = allIcos[0];
+                    icons.Add(icon);
                 }
-                else
-                {
-                    return null;
-                }
+                frame.Dispose();
             }
 
+            return icons;
+        }
+
+        /// <summary>
+        /// 加载 PNG（包括 APNG）帧
+        /// </summary>
+        private static List<Icon> LoadPngFrames(string filePath)
+        {
+            var icons = new List<Icon>();
+
+            // 先尝试作为 APNG 解析
             try
             {
-                using var icon = new Icon(iconPath);
-                return icon.ToBitmap();
+                using var fileStream = File.OpenRead(filePath);
+                var pngReader = new Png_Reader();
+                var frames = pngReader.Open(fileStream).SpltAPng();
+
+                if (frames != null && frames.Count > 1)
+                {
+                    // 这是一个 APNG，有多帧
+                    foreach (var frameData in frames)
+                    {
+                        using var ms = new MemoryStream(frameData.Value.ToArray());
+                        using var frameBitmap = new Bitmap(ms);
+                        var icon = BitmapToIcon(frameBitmap);
+                        if (icon != null)
+                        {
+                            icons.Add(icon);
+                        }
+                    }
+                    return icons;
+                }
             }
             catch
             {
-                return null;
+                // APNG 解析失败，当作静态 PNG 处理
             }
+
+            // 作为静态 PNG 处理
+            try
+            {
+                using var bitmap = new Bitmap(filePath);
+                var icon = BitmapToIcon(bitmap);
+                if (icon != null)
+                {
+                    icons.Add(icon);
+                }
+            }
+            catch
+            {
+                // 忽略加载错误
+            }
+
+            return icons;
+        }
+
+        /// <summary>
+        /// 获取动画的第一帧作为缩略图
+        /// </summary>
+        internal static Bitmap? GetThumbnail(string runnerName)
+        {
+            var runnersPath = GetRunnersPath();
+
+            // 查找匹配的文件
+            string? filePath = null;
+            foreach (var ext in SupportedExtensions)
+            {
+                var path = Path.Combine(runnersPath, runnerName + ext);
+                if (File.Exists(path))
+                {
+                    filePath = path;
+                    break;
+                }
+            }
+
+            if (filePath == null)
+                return null;
+
+            try
+            {
+                var extension = Path.GetExtension(filePath).ToLowerInvariant();
+
+                if (extension == ".gif")
+                {
+                    using var image = Image.FromFile(filePath);
+                    return new Bitmap(image);
+                }
+                else if (extension == ".png")
+                {
+                    // 对于 APNG，尝试获取第一帧
+                    try
+                    {
+                        using var fileStream = File.OpenRead(filePath);
+                        var pngReader = new Png_Reader();
+                        var frames = pngReader.Open(fileStream).SpltAPng();
+
+                        if (frames != null && frames.Count > 0)
+                        {
+                            var firstFrame = frames.First();
+                            using var ms = new MemoryStream(firstFrame.Value.ToArray());
+                            return new Bitmap(ms);
+                        }
+                    }
+                    catch
+                    {
+                        // APNG 解析失败，当作静态 PNG
+                    }
+
+                    return new Bitmap(filePath);
+                }
+            }
+            catch
+            {
+                // 忽略错误
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -154,8 +261,10 @@ namespace RunCatLite
         {
             if (string.IsNullOrEmpty(runnerName))
                 return false;
-            var runnerDir = Path.Combine(GetRunnersPath(), runnerName);
-            return Directory.Exists(runnerDir) && Directory.GetFiles(runnerDir, "*.ico").Length > 0;
+
+            var runnersPath = GetRunnersPath();
+            return SupportedExtensions.Any(ext =>
+                File.Exists(Path.Combine(runnersPath, runnerName + ext)));
         }
 
         /// <summary>
@@ -164,7 +273,31 @@ namespace RunCatLite
         internal static string GetDefaultRunner()
         {
             var runners = GetAvailableRunners();
-            return runners.Count > 0 ? runners[0] : "";
+            return runners.Count > 0 ? runners[0].FileName : "";
+        }
+
+        /// <summary>
+        /// 将 Bitmap 转换为 Icon
+        /// </summary>
+        private static Icon? BitmapToIcon(Bitmap bitmap)
+        {
+            try
+            {
+                // 创建一个新的 Bitmap 副本以确保格式正确
+                using var copy = new Bitmap(bitmap.Width, bitmap.Height, PixelFormat.Format32bppArgb);
+                using (var g = Graphics.FromImage(copy))
+                {
+                    g.Clear(Color.Transparent);
+                    g.DrawImage(bitmap, 0, 0, bitmap.Width, bitmap.Height);
+                }
+
+                var hIcon = copy.GetHicon();
+                return Icon.FromHandle(hIcon);
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 }
