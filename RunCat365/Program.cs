@@ -60,15 +60,15 @@ namespace RunCatLite
 
         public RunCatLiteApplicationContext()
         {
-            UserSettings.Default.Reload();
-            runner = UserSettings.Default.Runner ?? "";
+            PortableSettings.Default.Reload();
+            runner = PortableSettings.Default.Runner ?? "";
             // 验证 runner 是否有效，无效则使用默认
             if (!RunnerManager.IsValidRunner(runner))
             {
                 runner = RunnerManager.GetDefaultRunner();
             }
-            _ = Enum.TryParse(UserSettings.Default.Theme, out manualTheme);
-            _ = Enum.TryParse(UserSettings.Default.FPSMaxLimit, out fpsMaxLimit);
+            _ = Enum.TryParse(PortableSettings.Default.Theme, out manualTheme);
+            _ = Enum.TryParse(PortableSettings.Default.FPSMaxLimit, out fpsMaxLimit);
 
             SystemEvents.UserPreferenceChanged += new UserPreferenceChangedEventHandler(UserPreferenceChanged);
 
@@ -121,11 +121,11 @@ namespace RunCatLite
 
         private void ShowBalloonTip()
         {
-            if (UserSettings.Default.FirstLaunch)
+            if (PortableSettings.Default.FirstLaunch)
             {
                 contextMenuManager.ShowBalloonTip();
-                UserSettings.Default.FirstLaunch = false;
-                UserSettings.Default.Save();
+                PortableSettings.Default.FirstLaunch = false;
+                PortableSettings.Default.Save();
             }
         }
 
@@ -158,23 +158,23 @@ namespace RunCatLite
         private void ChangeRunner(string r)
         {
             runner = r;
-            UserSettings.Default.Runner = runner;
-            UserSettings.Default.Save();
+            PortableSettings.Default.Runner = runner;
+            PortableSettings.Default.Save();
         }
 
         private void ChangeManualTheme(Theme t)
         {
             manualTheme = t;
-            UserSettings.Default.Theme = manualTheme.ToString();
-            UserSettings.Default.Save();
+            PortableSettings.Default.Theme = manualTheme.ToString();
+            PortableSettings.Default.Save();
             contextMenuManager.UpdateMenuRenderer();
         }
 
         private void ChangeFPSMaxLimit(FPSMaxLimit f)
         {
             fpsMaxLimit = f;
-            UserSettings.Default.FPSMaxLimit = fpsMaxLimit.ToString();
-            UserSettings.Default.Save();
+            PortableSettings.Default.FPSMaxLimit = fpsMaxLimit.ToString();
+            PortableSettings.Default.Save();
         }
 
         private void AnimationTick(object? sender, EventArgs e)
