@@ -21,3 +21,4 @@ BundleArtifacts/
 WapForStore/**/*.assets.cache
 
 dist*
+.build-cache/

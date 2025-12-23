@@ -56,17 +56,25 @@ build_platform() {
     # 创建输出目录
     mkdir -p "${OUTPUT_DIR}"
 
+    # 创建持久化的 NuGet 缓存目录
+    local CACHE_DIR="${PWD}/.build-cache"
+    mkdir -p "${CACHE_DIR}/nuget" "${CACHE_DIR}/dotnet"
+
     # 使用 podman 运行 .NET SDK 容器进行编译
     # 使用 --userns=keep-id 保持当前用户权限，避免产物归root所有
-    # 设置环境变量将所有缓存重定向到容器内 /tmp，避免污染宿主机
+    # 挂载持久化缓存目录以加速后续构建
     podman run --rm \
         --network=host \
         --userns=keep-id \
         -e HOME=/tmp \
-        -e DOTNET_CLI_HOME=/tmp/.dotnet \
-        -e NUGET_PACKAGES=/tmp/.nuget/packages \
+        -e DOTNET_CLI_HOME=/cache/dotnet \
+        -e NUGET_PACKAGES=/cache/nuget \
         -e DOTNET_NOLOGO=1 \
+        -e DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 \
+        -e DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+        -e DOTNET_SKIP_WORKLOAD_INTEGRITY_CHECK=1 \
         -v "$(pwd):/src:Z" \
+        -v "${CACHE_DIR}:/cache:Z" \
         -w /src \
         "mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION}" \
         dotnet publish "${PROJECT_DIR}/${PROJECT_DIR}.csproj" \
