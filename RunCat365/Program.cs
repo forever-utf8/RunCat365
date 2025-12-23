@@ -133,8 +133,8 @@ namespace RunCatLite
         {
             if (e.Category == UserPreferenceCategory.General)
             {
-                // 主题切换只更新菜单渲染器，不再影响图标
-                // 因为现在使用统一的 PNG/GIF 动画，不区分 light/dark
+                // 系统主题变化时重新加载图标（单色图标需要根据主题重新着色）
+                contextMenuManager.SetIcons(runner);
                 contextMenuManager.UpdateMenuRenderer();
             }
         }

@@ -67,8 +67,8 @@ namespace RunCatLite
                         (string? s, out Theme t) => Enum.TryParse(s, out t),
                         t => setManualTheme(t)
                     );
-                    // 主题切换不再影响图标，因为现在使用统一的 PNG/GIF 动画
-                    // SetIcons(getRunner()); // 如果需要可以取消注释
+                    // 主题切换时重新加载图标（单色图标需要根据主题重新着色）
+                    SetIcons(getRunner());
                 },
                 t => getManualTheme() == t,
                 _ => null
@@ -182,8 +182,9 @@ namespace RunCatLite
                     Tag = runner.FileName
                 };
 
-                // 设置缩略图（第一帧）
-                var thumbnail = RunnerManager.GetThumbnail(runner.FileName);
+                // 设置缩略图（第一帧，根据主题着色）
+                var isDarkTheme = IsDarkTheme();
+                var thumbnail = RunnerManager.GetThumbnail(runner.FileName, isDarkTheme);
                 if (thumbnail != null)
                 {
                     menuItem.Image = thumbnail;
@@ -218,7 +219,14 @@ namespace RunCatLite
             }
         }
 
-        // GetThemeName 方法已移除，不再需要按主题加载不同图标
+        /// <summary>
+        /// 获取当前是否为暗色主题
+        /// </summary>
+        private bool IsDarkTheme()
+        {
+            var actualTheme = getManualTheme() == Theme.System ? getSystemTheme() : getManualTheme();
+            return actualTheme == Theme.Dark;
+        }
 
         private static void HandleMenuItemSelection<T>(
             ToolStripMenuItem parentMenu,
@@ -242,7 +250,8 @@ namespace RunCatLite
 
         internal void SetIcons(string runnerName)
         {
-            var list = RunnerManager.LoadFrames(runnerName);
+            var isDarkTheme = IsDarkTheme();
+            var list = RunnerManager.LoadFrames(runnerName, isDarkTheme);
 
             lock (iconLock)
             {
