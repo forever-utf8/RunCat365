@@ -13,12 +13,12 @@
     <Company>Studio Kyome</Company>
     <Description>A lightweight running cat animation on your taskbar.</Description>
     <Copyright>© 2022 Takuto Nakamura</Copyright>
-    <PackageProjectUrl>https://kyome22.github.io/RunCat365/</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/Kyome22/RunCat365</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/forever-utf8/RunCat365</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/forever-utf8/RunCat365</RepositoryUrl>
     <PackageTags>cpu;cat;taskbar</PackageTags>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <PackageIcon>app_icon.png</PackageIcon>
-    <Version>4.0.0</Version>
+    <Version>1.0.0</Version>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <StartupObject>RunCatLite.Program</StartupObject>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
@@ -27,11 +27,22 @@
     <NoWarn>$(NoWarn);WFO5001</NoWarn>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
+    <!-- High DPI mode configuration (replaces App.manifest dpiAwareness settings) -->
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+
     <!-- Optimization settings -->
     <PublishReadyToRun>true</PublishReadyToRun>
 
     <!-- Embed config into exe, don't generate separate .dll.config file -->
     <GenerateAppConfigFileForPublish>false</GenerateAppConfigFileForPublish>
+
+    <!-- Portable Mode: default to true for backward compatibility -->
+    <PortableMode Condition="'$(PortableMode)' == ''">true</PortableMode>
+  </PropertyGroup>
+
+  <!-- Define PORTABLE_MODE constant when PortableMode is true -->
+  <PropertyGroup Condition="'$(PortableMode)' == 'true'">
+    <DefineConstants>$(DefineConstants);PORTABLE_MODE</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -39,7 +50,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="QSoft.Apng" Version="1.0.0" />
+    <!-- Suppress NU1701: Package targets .NET Framework but works fine in .NET 9 -->
+    <PackageReference Include="QSoft.Apng" Version="1.0.0" NoWarn="NU1701" />
   </ItemGroup>
 
   <ItemGroup>

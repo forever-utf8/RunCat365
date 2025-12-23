@@ -1,33 +1,26 @@
 # RunCat-Lite
 
-**A lightweight, customizable running cat animation on your Windows Taskbar.**
+[English](README_EN.md) | **简体中文**
 
-基于 [Kyome22/RunCat365](https://github.com/Kyome22/RunCat365) 的精简版本。
+**轻量级任务栏奔跑猫动画，根据 CPU 使用率动态调整奔跑速度。**
+
+基于 [Kyome22/RunCat365](https://github.com/Kyome22/RunCat365) 重构的精简版本。
+
+<p align="center">
+  <img src="docs/images/demo.gif" alt="RunCat-Lite Demo" width="400">
+</p>
 
 ---
 
-## ✨ 与原版的区别
+## ✨ 特性
 
-| 特性 | RunCat 365 (原版) | RunCat-Lite |
-|------|------------------|-------------|
-| **分发方式** | Microsoft Store | 独立可执行文件 |
-| **部署类型** | 依赖外部运行时 | 自包含 Single-File |
-| **角色资源** | 内嵌到程序 | 外挂 (可热加载) |
-| **Endless Game** | ✅ 内置小游戏 | ❌ 已移除 |
-| **WinRT/UWP** | 需要 StartupTask | 纯 Win32 注册表 |
-| **界面语言** | English | 简体中文 |
-| **右键菜单** | 系统默认样式 | Windows 11 风格 |
-
-### 主要改动
-
-- 🎯 **精简体积** - 移除 Endless Game（`EndlessGameForm.cs`、`Cat.cs`、`Road.cs`、`GameStatus.cs`）及相关游戏资源
-- 🔧 **外挂角色** - `runners/` 目录运行时动态扫描，无需重新编译即可添加角色
-- 🐧 **容器化构建** - `build.sh` 使用 Podman 在 Linux 下交叉编译，零宿主机污染
-- 🇨🇳 **中文本地化** - 右键菜单、系统信息指示器（CPU/内存/存储/网络）全部汉化
-- ⚡ **低内存占用** - `CPURepository.cs` 改用 `NtQuerySystemInformation` 替代 `PerformanceCounter`
-- 🎨 **现代化 UI** - `ModernMenuRenderer.cs` 实现 Windows 11 风格圆角菜单，自动适配亮/暗主题
-- 🚀 **简化启动项** - `LaunchAtStartupManager.cs` 移除 UWP `StartupTask` 依赖，仅使用注册表
-- 📦 **移除 UWP 打包** - 删除 `WapForStore` 项目及 MSIX 相关配置
+- 🐱 **任务栏动画** - 可爱的奔跑猫根据 CPU 负载调整速度
+- 🎨 **Windows 11 风格菜单** - 现代化圆角菜单，自动适配亮/暗主题
+- 📊 **系统监控** - 显示 CPU、内存、存储、网络使用情况
+- � **热加载角色** - 直接在 `runners/` 目录添加 APNG/GIF，无需重启
+- � **智能着色** - 单色图标自动适配系统主题
+- � **绿色便携** - 单文件运行，无需安装
+- � **低资源占用** - 使用原生 API，内存占用极低
 
 ---
 
@@ -40,21 +33,28 @@
 ### 系统要求
 
 - Windows 10 version 19041.0 或更高
-- 自包含版本无需安装 .NET 运行时
+- `portable` / `installed-self` 版本：无需安装 .NET 运行时（自包含）
+- `installed` 版本：需要安装 [.NET Desktop Runtime 9.0](https://dotnet.microsoft.com/download/dotnet/9.0)
+
+### 版本选择
+
+| 版本 | 体积 | 运行时依赖 | 配置位置 | 适用场景 |
+|------|------|-----------|----------|----------|
+| `portable` | ~110MB | 无 | 程序目录 | U盘便携、绿色版 |
+| `installed-self` | ~110MB | 无 | AppData | 固定安装 |
+| `installed` | ~1MB | 需系统 .NET | AppData | 已装 .NET 用户 |
 
 ---
 
 ## 🎨 自定义角色
 
-在 `runners/` 目录下放入动画文件即可：
+在 `runners/` 目录下放入动画文件即可（右键菜单 → 设置 → 打开角色文件夹）：
 
 ```
 runners/
 ├── 00_cat.png              # APNG 动画文件
 ├── 01_cat_b.png
 ├── 02_cat_c.png
-├── 03_cat_tail.png
-├── 10_mock_nyan_cat.png
 └── my_custom.gif           # 也支持 GIF 格式
 ```
 
@@ -62,33 +62,20 @@ runners/
 
 | 格式 | 说明 |
 |------|------|
-| **APNG** | 动画 PNG，推荐格式，支持透明背景和无损压缩 |
-| **GIF** | 传统 GIF 动画，自动提取所有帧 |
-| **PNG** | 静态 PNG，作为单帧显示 |
+| **APNG** | 动画 PNG，推荐，支持透明背景 |
+| **GIF** | GIF 动画，自动提取所有帧 |
+| **PNG** | 静态 PNG，单帧显示 |
 
-### 命名规则
+### 智能着色
 
-- 文件名（不含扩展名）即为角色名称，直接显示在菜单中
-- 建议使用 `序号_名称.png` 格式便于排序，如 `00_cat.png`、`01_dog.gif`
-
-### 动画要求
-
-- 尺寸建议：宽度 36-112px，高度 36px（与任务栏高度匹配）
-- 透明背景：支持 RGBA 透明通道
-- 帧率：程序会根据 CPU 使用率动态调整播放速度
-
-### 🎯 智能着色
-
-对于**单色动画**（灰度或接近单一颜色的图像），程序会自动根据系统主题进行着色：
+对于**单色动画**，程序会自动根据系统主题着色：
 
 | 系统主题 | 图标颜色 |
 |----------|----------|
-| 亮色主题 | 深色图标（近黑色） |
-| 暗色主题 | 浅色图标（近白色） |
+| 亮色主题 | 深色图标 |
+| 暗色主题 | 浅色图标 |
 
-这意味着你只需要准备一套动画素材，程序会自动适配不同的任务栏背景色。**彩色动画不受影响**，会保持原始颜色。
-
-每次打开右键菜单时程序会自动扫描 `runners/` 目录，新添加的角色会立即出现。
+彩色动画保持原始颜色不变。
 
 ---
 
@@ -99,29 +86,26 @@ runners/
 - Linux / macOS / WSL2 + Podman
 - 或 Windows + .NET 9.0 SDK
 
-### 使用构建脚本 (推荐)
+### 构建命令
 
 ```bash
-# 构建 Windows x64 版本
-./build.sh win-x64
+# 便携版（默认）
+./build.sh win-x64 portable
+
+# 安装版（自包含）
+./build.sh win-x64 installed-self
+
+# 安装版（需系统 .NET）
+./build.sh win-x64 installed
 
 # 构建所有平台
-./build.sh all
-
-# 清理旧构建
-./build.sh --clean
+./build.sh all portable
 
 # 查看帮助
 ./build.sh --help
 ```
 
-### 构建特性
-
-- **零宿主机污染** - `bin/`、`obj/`、NuGet 缓存全部在容器内
-- **持久化缓存** - `.build-cache/` 目录加速后续构建
-- **权限自动修复** - `podman unshare` 确保产物归当前用户所有
-
-### 支持的目标平台
+### 支持平台
 
 | RID | 描述 |
 |-----|------|
@@ -129,28 +113,30 @@ runners/
 | `win-x86` | Windows x86 (32位) |
 | `win-arm64` | Windows ARM64 |
 
-产物输出到 `dist/` 目录，格式：`RunCat-Lite_{RID}_net9.0_{TIMESTAMP}/`
+---
+
+## 🆚 与原版的区别
+
+| 特性 | RunCat 365 | RunCat-Lite |
+|------|------------|-------------|
+| 分发方式 | Microsoft Store | 独立可执行文件 |
+| 部署类型 | 依赖运行时 | 自包含单文件 |
+| 角色资源 | 内嵌 | 外挂热加载 |
+| 小游戏 | ✅ | ❌ |
+| 界面语言 | English | 简体中文 |
+| 右键菜单 | 系统样式 | Win11 风格 |
 
 ---
 
 ## 📄 许可证
 
-本项目遵循 [Apache License 2.0](LICENSE)。
+[Apache License 2.0](LICENSE)
 
 ---
 
 ## 🙏 致谢
 
-### 原作者
-
 本项目基于 **[Kyome22/RunCat365](https://github.com/Kyome22/RunCat365)** 修改。
 
-<a href="https://github.com/Kyome22/RunCat365/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=Kyome22/RunCat365" />
-</a>
-
-### 原版信息
-
 - 原项目: [RunCat 365](https://github.com/Kyome22/RunCat365)
-- Microsoft Store: https://apps.microsoft.com/detail/9nw5lpnvwfwj
 - 开发者: [Kyome22](https://github.com/Kyome22)

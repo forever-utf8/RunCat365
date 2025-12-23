@@ -145,7 +145,7 @@ namespace RunCatLite
             {
                 Process.Start(new ProcessStartInfo()
                 {
-                    FileName = "https://github.com/Kyome22/RunCat365.git",
+                    FileName = "https://github.com/forever-utf8/RunCat365",
                     UseShellExecute = true
                 });
             }

@@ -128,7 +128,6 @@ namespace RunCatLite
             var info = GetProcessorInfo();
             if (info == null) return;
 
-            long totalIdle = 0, totalKernel = 0, totalUser = 0;
             long deltaIdle = 0, deltaKernel = 0, deltaUser = 0;
 
             for (int i = 0; i < processorCount; i++)

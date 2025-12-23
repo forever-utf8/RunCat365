@@ -245,7 +245,7 @@ namespace RunCatLite
 
         private static string GetRunnersPath()
         {
-            return Path.Combine(AppContext.BaseDirectory, "runners");
+            return AppInfo.RunnersDirectory;
         }
 
         /// <summary>

@@ -96,12 +96,17 @@ namespace RunCatLite
             };
             launchAtStartupMenu.Click += (sender, e) => HandleStartupMenuClick(sender, toggleLaunchAtStartup);
 
+            var openRunnersFolderMenu = new CustomToolStripMenuItem("📂打开角色文件夹");
+            openRunnersFolderMenu.Click += (sender, e) => OpenRunnersFolder();
+
             var settingsMenu = new CustomToolStripMenuItem("设置");
             settingsMenu.DropDownItems.AddRange(new ToolStripItem[]
             {
                 themeMenu,
                 fpsMaxLimitMenu,
-                launchAtStartupMenu
+                launchAtStartupMenu,
+                new ToolStripSeparator(),
+                openRunnersFolderMenu
             });
 
             var appVersionMenu = new CustomToolStripMenuItem(
@@ -289,6 +294,39 @@ namespace RunCatLite
             catch (InvalidOperationException ex)
             {
                 MessageBox.Show(ex.Message, "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        /// <summary>
+        /// 使用系统文件管理器打开角色文件夹
+        /// </summary>
+        private static void OpenRunnersFolder()
+        {
+            try
+            {
+                var runnersPath = AppInfo.RunnersDirectory;
+
+                // 如果目录不存在则创建
+                if (!Directory.Exists(runnersPath))
+                {
+                    Directory.CreateDirectory(runnersPath);
+                }
+
+                // 使用系统文件管理器打开
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = runnersPath,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"无法打开角色文件夹: {ex.Message}",
+                    "错误",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error
+                );
             }
         }
 

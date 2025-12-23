@@ -1,9 +1,9 @@
 ﻿<?xml version='1.0' encoding='utf-8'?>
-<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="RunCat365.Properties" GeneratedClassName="UserSettings">
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="RunCatLite.Properties" GeneratedClassName="UserSettings">
   <Profiles />
   <Settings>
     <Setting Name="Runner" Type="System.String" Scope="User">
-      <Value Profile="(Default)">Cat</Value>
+      <Value Profile="(Default)">cat</Value>
     </Setting>
     <Setting Name="Theme" Type="System.String" Scope="User">
       <Value Profile="(Default)" />
