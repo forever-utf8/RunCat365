@@ -10,22 +10,24 @@
 
 | 特性 | RunCat 365 (原版) | RunCat-Lite |
 |------|------------------|-------------|
-| **目标框架** | .NET 9.0 | .NET 9.0 |
 | **分发方式** | Microsoft Store | 独立可执行文件 |
-| **部署类型** | 依赖运行时 | 自包含 (Single-File) |
-| **角色资源** | 内嵌 | 外挂 (可自定义) |
-| **Endless Game** | ✅ | ❌ (已移除) |
-| **WinRT 依赖** | 需要 | 不需要 |
-| **界面语言** | English | 中文 |
-| **菜单样式** | 默认 | 现代化 (Windows 11 风格) |
+| **部署类型** | 依赖外部运行时 | 自包含 Single-File |
+| **角色资源** | 内嵌到程序 | 外挂 (可热加载) |
+| **Endless Game** | ✅ 内置小游戏 | ❌ 已移除 |
+| **WinRT/UWP** | 需要 StartupTask | 纯 Win32 注册表 |
+| **界面语言** | English | 简体中文 |
+| **右键菜单** | 系统默认样式 | Windows 11 风格 |
 
 ### 主要改动
 
-- 🎯 **精简体积** - 移除 Endless Game 功能和相关资源
-- 🔧 **外挂角色** - `runners/` 目录可自由添加/替换角色动画
-- 🐧 **Linux 构建** - 使用 Podman 容器化构建，零宿主机依赖
-- 🇨🇳 **中文界面** - 菜单和提示信息汉化
-- ⚡ **低内存** - 使用 NtQuerySystemInformation 替代 PerformanceCounter
+- 🎯 **精简体积** - 移除 Endless Game（`EndlessGameForm.cs`、`Cat.cs`、`Road.cs`、`GameStatus.cs`）及相关游戏资源
+- 🔧 **外挂角色** - `runners/` 目录运行时动态扫描，无需重新编译即可添加角色
+- 🐧 **容器化构建** - `build.sh` 使用 Podman 在 Linux 下交叉编译，零宿主机污染
+- 🇨🇳 **中文本地化** - 右键菜单、系统信息指示器（CPU/内存/存储/网络）全部汉化
+- ⚡ **低内存占用** - `CPURepository.cs` 改用 `NtQuerySystemInformation` 替代 `PerformanceCounter`
+- 🎨 **现代化 UI** - `ModernMenuRenderer.cs` 实现 Windows 11 风格圆角菜单，自动适配亮/暗主题
+- 🚀 **简化启动项** - `LaunchAtStartupManager.cs` 移除 UWP `StartupTask` 依赖，仅使用注册表
+- 📦 **移除 UWP 打包** - 删除 `WapForStore` 项目及 MSIX 相关配置
 
 ---
 
@@ -65,7 +67,7 @@ runners/
 - `themeName`: `light` 或 `dark`
 - `frameIndex`: 从 0 开始的帧序号
 
-程序会在打开"角色"菜单时自动扫描并加载新角色。
+每次打开右键菜单时程序会自动扫描 `runners/` 目录，新添加的角色会立即出现。
 
 ---
 
@@ -73,8 +75,8 @@ runners/
 
 ### 前提条件
 
-- Linux 系统 + Podman
-- 或 Windows + .NET 8.0 SDK
+- Linux / macOS / WSL2 + Podman
+- 或 Windows + .NET 9.0 SDK
 
 ### 使用构建脚本 (推荐)
 
@@ -85,17 +87,28 @@ runners/
 # 构建所有平台
 ./build.sh all
 
+# 清理旧构建
+./build.sh --clean
+
 # 查看帮助
 ./build.sh --help
 ```
 
-构建产物输出到 `dist/` 目录。
+### 构建特性
+
+- **零宿主机污染** - `bin/`、`obj/`、NuGet 缓存全部在容器内
+- **持久化缓存** - `.build-cache/` 目录加速后续构建
+- **权限自动修复** - `podman unshare` 确保产物归当前用户所有
 
 ### 支持的目标平台
 
-- `win-x64` - Windows x64
-- `win-x86` - Windows x86
-- `win-arm64` - Windows ARM64
+| RID | 描述 |
+|-----|------|
+| `win-x64` | Windows x64 (Intel/AMD) |
+| `win-x86` | Windows x86 (32位) |
+| `win-arm64` | Windows ARM64 |
+
+产物输出到 `dist/` 目录，格式：`RunCat-Lite_{RID}_net9.0_{TIMESTAMP}/`
 
 ---
 
