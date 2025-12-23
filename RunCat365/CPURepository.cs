@@ -12,9 +12,9 @@
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 
-using System.Diagnostics;
+using System.Runtime.InteropServices;
 
-namespace RunCat365
+namespace RunCatLite
 {
     struct CPUInfo
     {
@@ -36,9 +36,9 @@ namespace RunCat365
             var resultLines = new List<string>
             {
                 $"CPU: {cpuInfo.Total:f1}%",
-                $"   ├─ User: {cpuInfo.User:f1}%",
-                $"   ├─ Kernel: {cpuInfo.Kernel:f1}%",
-                $"   └─ Available: {cpuInfo.Idle:f1}%"
+                $"   ├─ 用户: {cpuInfo.User:f1}%",
+                $"   ├─ 内核: {cpuInfo.Kernel:f1}%",
+                $"   └─ 空闲: {cpuInfo.Idle:f1}%"
             };
             return resultLines;
         }
@@ -46,41 +46,119 @@ namespace RunCat365
 
     internal class CPURepository
     {
-        private readonly PerformanceCounter totalCounter;
-        private readonly PerformanceCounter userCounter;
-        private readonly PerformanceCounter kernelCounter;
-        private readonly PerformanceCounter idleCounter;
+        [StructLayout(LayoutKind.Sequential)]
+        private struct SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION
+        {
+            public long IdleTime;
+            public long KernelTime;
+            public long UserTime;
+            public long Reserved1;
+            public long Reserved2;
+            public int Reserved3;
+        }
+
+        [DllImport("ntdll.dll")]
+        private static extern int NtQuerySystemInformation(
+            int SystemInformationClass,
+            IntPtr SystemInformation,
+            int SystemInformationLength,
+            out int ReturnLength);
+
+        private const int SystemProcessorPerformanceInformation = 8;
+
+        private readonly int processorCount;
+        private long[] prevIdleTimes;
+        private long[] prevKernelTimes;
+        private long[] prevUserTimes;
         private readonly List<CPUInfo> cpuInfoList = [];
         private const int CPU_INFO_LIST_LIMIT_SIZE = 5;
 
         internal CPURepository()
         {
-            totalCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
-            userCounter = new PerformanceCounter("Processor", "% User Time", "_Total");
-            kernelCounter = new PerformanceCounter("Processor", "% Privileged Time", "_Total");
-            idleCounter = new PerformanceCounter("Processor", "% Idle Time", "_Total");
+            processorCount = Environment.ProcessorCount;
+            prevIdleTimes = new long[processorCount];
+            prevKernelTimes = new long[processorCount];
+            prevUserTimes = new long[processorCount];
 
-            // Discards first return value
-            _ = totalCounter.NextValue();
-            _ = userCounter.NextValue();
-            _ = kernelCounter.NextValue();
-            _ = idleCounter.NextValue();
+            // Initialize with first sample
+            var info = GetProcessorInfo();
+            if (info != null)
+            {
+                for (int i = 0; i < processorCount; i++)
+                {
+                    prevIdleTimes[i] = info[i].IdleTime;
+                    prevKernelTimes[i] = info[i].KernelTime;
+                    prevUserTimes[i] = info[i].UserTime;
+                }
+            }
+        }
+
+        private SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION[]? GetProcessorInfo()
+        {
+            int structSize = Marshal.SizeOf<SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION>();
+            int bufferSize = structSize * processorCount;
+            IntPtr buffer = Marshal.AllocHGlobal(bufferSize);
+
+            try
+            {
+                int status = NtQuerySystemInformation(
+                    SystemProcessorPerformanceInformation,
+                    buffer,
+                    bufferSize,
+                    out _);
+
+                if (status != 0) return null;
+
+                var result = new SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION[processorCount];
+                for (int i = 0; i < processorCount; i++)
+                {
+                    IntPtr ptr = IntPtr.Add(buffer, i * structSize);
+                    result[i] = Marshal.PtrToStructure<SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION>(ptr);
+                }
+                return result;
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(buffer);
+            }
         }
 
         internal void Update()
         {
-            // Range of value: 0-100 (%)
-            var total = Math.Min(100, totalCounter.NextValue());
-            var user = Math.Min(100, userCounter.NextValue());
-            var kernel = Math.Min(100, kernelCounter.NextValue());
-            var idle = Math.Min(100, idleCounter.NextValue());
+            var info = GetProcessorInfo();
+            if (info == null) return;
+
+            long totalIdle = 0, totalKernel = 0, totalUser = 0;
+            long deltaIdle = 0, deltaKernel = 0, deltaUser = 0;
+
+            for (int i = 0; i < processorCount; i++)
+            {
+                deltaIdle += info[i].IdleTime - prevIdleTimes[i];
+                deltaKernel += info[i].KernelTime - prevKernelTimes[i];
+                deltaUser += info[i].UserTime - prevUserTimes[i];
+
+                prevIdleTimes[i] = info[i].IdleTime;
+                prevKernelTimes[i] = info[i].KernelTime;
+                prevUserTimes[i] = info[i].UserTime;
+            }
+
+            // Kernel time includes idle time
+            long totalTime = deltaKernel + deltaUser;
+            if (totalTime == 0) return;
+
+            long activeKernel = deltaKernel - deltaIdle;
+
+            float idlePercent = (float)deltaIdle / totalTime * 100f;
+            float kernelPercent = (float)activeKernel / totalTime * 100f;
+            float userPercent = (float)deltaUser / totalTime * 100f;
+            float totalPercent = 100f - idlePercent;
 
             var cpuInfo = new CPUInfo
             {
-                Total = total,
-                User = user,
-                Kernel = kernel,
-                Idle = idle,
+                Total = Math.Min(100, Math.Max(0, totalPercent)),
+                User = Math.Min(100, Math.Max(0, userPercent)),
+                Kernel = Math.Min(100, Math.Max(0, kernelPercent)),
+                Idle = Math.Min(100, Math.Max(0, idlePercent)),
             };
 
             cpuInfoList.Add(cpuInfo);
@@ -105,10 +183,7 @@ namespace RunCat365
 
         internal void Close()
         {
-            totalCounter.Close();
-            userCounter.Close();
-            kernelCounter.Close();
-            idleCounter.Close();
+            // No resources to close with P/Invoke approach
         }
     }
 }

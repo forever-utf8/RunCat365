@@ -13,26 +13,25 @@
 //    limitations under the License.
 
 using Microsoft.Win32;
-using RunCat365.Properties;
+using RunCatLite.Properties;
 using System.Diagnostics;
 using FormsTimer = System.Windows.Forms.Timer;
 
-namespace RunCat365
+namespace RunCatLite
 {
     internal static class Program
     {
         [STAThread]
         static void Main()
         {
-            // Terminate RunCat365 if there's any existing instance.
+            // Terminate RunCatLite if there's any existing instance.
             using var procMutex = new Mutex(true, "_RUNCAT_MUTEX", out var result);
             if (!result) return;
 
             try
             {
                 ApplicationConfiguration.Initialize();
-                Application.SetColorMode(SystemColorMode.System);
-                Application.Run(new RunCat365ApplicationContext());
+                Application.Run(new RunCatLiteApplicationContext());
             }
             finally
             {
@@ -41,7 +40,7 @@ namespace RunCat365
         }
     }
 
-    internal class RunCat365ApplicationContext : ApplicationContext
+    internal class RunCatLiteApplicationContext : ApplicationContext
     {
         private const int FETCH_TIMER_DEFAULT_INTERVAL = 1000;
         private const int FETCH_COUNTER_SIZE = 5;
@@ -54,15 +53,20 @@ namespace RunCat365
         private readonly ContextMenuManager contextMenuManager;
         private readonly FormsTimer fetchTimer;
         private readonly FormsTimer animateTimer;
-        private Runner runner = Runner.Cat;
+        private string runner = "";
         private Theme manualTheme = Theme.System;
         private FPSMaxLimit fpsMaxLimit = FPSMaxLimit.FPS40;
         private int fetchCounter = 5;
 
-        public RunCat365ApplicationContext()
+        public RunCatLiteApplicationContext()
         {
             UserSettings.Default.Reload();
-            _ = Enum.TryParse(UserSettings.Default.Runner, out runner);
+            runner = UserSettings.Default.Runner ?? "";
+            // 验证 runner 是否有效，无效则使用默认
+            if (!RunnerManager.IsValidRunner(runner))
+            {
+                runner = RunnerManager.GetDefaultRunner();
+            }
             _ = Enum.TryParse(UserSettings.Default.Theme, out manualTheme);
             _ = Enum.TryParse(UserSettings.Default.FPSMaxLimit, out fpsMaxLimit);
 
@@ -150,10 +154,10 @@ namespace RunCat365
             }
         }
 
-        private void ChangeRunner(Runner r)
+        private void ChangeRunner(string r)
         {
             runner = r;
-            UserSettings.Default.Runner = runner.ToString();
+            UserSettings.Default.Runner = runner;
             UserSettings.Default.Save();
         }
 

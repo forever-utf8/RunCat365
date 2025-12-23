@@ -14,7 +14,7 @@
 
 using System.Net.NetworkInformation;
 
-namespace RunCat365
+namespace RunCatLite
 {
     struct NetworkInfo
     {
@@ -28,9 +28,9 @@ namespace RunCat365
         {
             return new List<string>
             {
-                $"Network:",
-                $"   ├─ Sent: {FormatSpeed(networkInfo.SentSpeed)}",
-                $"   └─ Received: {FormatSpeed(networkInfo.ReceivedSpeed)}"
+                $"网络:",
+                $"   ├─ 发送: {FormatSpeed(networkInfo.SentSpeed)}",
+                $"   └─ 接收: {FormatSpeed(networkInfo.ReceivedSpeed)}"
             };
         }
 

@@ -14,7 +14,7 @@
 
 using System.Runtime.InteropServices;
 
-namespace RunCat365
+namespace RunCatLite
 {
     struct MemoryInfo
     {
@@ -30,10 +30,10 @@ namespace RunCat365
         {
             var resultLines = new List<string>
             {
-                $"Memory: {memoryInfo.MemoryLoad}%",
-                $"   ├─ Total: {memoryInfo.TotalMemory.ToByteFormatted()}",
-                $"   ├─ Used: {memoryInfo.UsedMemory.ToByteFormatted()}",
-                $"   └─ Available: {memoryInfo.AvailableMemory.ToByteFormatted()}"
+                $"内存: {memoryInfo.MemoryLoad}%",
+                $"   ├─ 总计: {memoryInfo.TotalMemory.ToByteFormatted()}",
+                $"   ├─ 已用: {memoryInfo.UsedMemory.ToByteFormatted()}",
+                $"   └─ 可用: {memoryInfo.AvailableMemory.ToByteFormatted()}"
             };
             return resultLines;
         }

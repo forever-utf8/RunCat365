@@ -19,3 +19,5 @@ BundleArtifacts/
 
 # Wap
 WapForStore/**/*.assets.cache
+
+dist*

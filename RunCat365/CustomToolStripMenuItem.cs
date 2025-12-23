@@ -12,7 +12,7 @@
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 
-namespace RunCat365
+namespace RunCatLite
 {
     internal class CustomToolStripMenuItem : ToolStripMenuItem
     {
@@ -70,14 +70,14 @@ namespace RunCat365
             Func<T, string> getTitle,
             Action<CustomToolStripMenuItem, object?, EventArgs> onClick,
             Func<T, bool> isChecked,
-            Func<Runner, Bitmap?> getRunnerThumbnailBitmap
+            Func<T, Bitmap?> getImage
         ) where T : Enum
         {
             var items = new List<CustomToolStripMenuItem>();
             foreach (T value in Enum.GetValues(typeof(T)))
             {
                 var entityName = getTitle(value);
-                var iconImage = value is Runner runner ? getRunnerThumbnailBitmap(runner) : null;
+                var iconImage = getImage(value);
                 var item = new CustomToolStripMenuItem(
                     entityName,
                     iconImage,

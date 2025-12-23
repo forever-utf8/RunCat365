@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace RunCat365.Properties {
+namespace RunCatLite.Properties {
     
     
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]

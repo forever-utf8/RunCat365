@@ -12,23 +12,27 @@
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 
-using RunCat365.Properties;
 using System.ComponentModel;
 
-namespace RunCat365
+namespace RunCatLite
 {
     internal class ContextMenuManager : IDisposable
     {
         private readonly CustomToolStripMenuItem systemInfoMenu = new();
+        private readonly CustomToolStripMenuItem runnersMenu;
         private readonly NotifyIcon notifyIcon = new();
         private readonly List<Icon> icons = [];
         private readonly object iconLock = new();
         private int current = 0;
-        private EndlessGameForm? endlessGameForm;
+
+        private readonly Func<string> getRunner;
+        private readonly Action<string> setRunner;
+        private readonly Func<Theme> getSystemTheme;
+        private readonly Func<Theme> getManualTheme;
 
         internal ContextMenuManager(
-            Func<Runner> getRunner,
-            Action<Runner> setRunner,
+            Func<string> getRunner,
+            Action<string> setRunner,
             Func<Theme> getSystemTheme,
             Func<Theme> getManualTheme,
             Action<Theme> setManualTheme,
@@ -40,27 +44,19 @@ namespace RunCat365
             Action onExit
         )
         {
+            this.getRunner = getRunner;
+            this.setRunner = setRunner;
+            this.getSystemTheme = getSystemTheme;
+            this.getManualTheme = getManualTheme;
+
             systemInfoMenu.Text = "-\n-\n-\n-\n-";
             systemInfoMenu.Enabled = false;
 
-            var runnersMenu = new CustomToolStripMenuItem("Runners");
-            runnersMenu.SetupSubMenusFromEnum<Runner>(
-                r => r.GetString(),
-                (parent, sender, e) =>
-                {
-                    HandleMenuItemSelection<Runner>(
-                        parent,
-                        sender,
-                        (string? s, out Runner r) => Enum.TryParse(s, out r),
-                        r => setRunner(r)
-                    );
-                    SetIcons(getSystemTheme(), getManualTheme(), getRunner());
-                },
-                r => getRunner() == r,
-                r => GetRunnerThumbnailBitmap(getSystemTheme(), r)
-            );
+            // 角色菜单 - 在打开时动态刷新
+            runnersMenu = new CustomToolStripMenuItem("角色");
+            runnersMenu.DropDownOpening += (sender, e) => RefreshRunnersMenu();
 
-            var themeMenu = new CustomToolStripMenuItem("Theme");
+            var themeMenu = new CustomToolStripMenuItem("外观");
             themeMenu.SetupSubMenusFromEnum<Theme>(
                 t => t.GetString(),
                 (parent, sender, e) =>
@@ -77,7 +73,7 @@ namespace RunCat365
                 _ => null
             );
 
-            var fpsMaxLimitMenu = new CustomToolStripMenuItem("FPS Max Limit");
+            var fpsMaxLimitMenu = new CustomToolStripMenuItem("最大帧率");
             fpsMaxLimitMenu.SetupSubMenusFromEnum<FPSMaxLimit>(
                 f => f.GetString(),
                 (parent, sender, e) =>
@@ -93,21 +89,19 @@ namespace RunCat365
                 _ => null
             );
 
-            var launchAtStartupMenu = new CustomToolStripMenuItem("Launch at startup")
+            var launchAtStartupMenu = new CustomToolStripMenuItem("自启动")
             {
                 Checked = getLaunchAtStartup()
             };
             launchAtStartupMenu.Click += (sender, e) => HandleStartupMenuClick(sender, toggleLaunchAtStartup);
 
-            var settingsMenu = new CustomToolStripMenuItem("Settings");
-            settingsMenu.DropDownItems.AddRange(
+            var settingsMenu = new CustomToolStripMenuItem("设置");
+            settingsMenu.DropDownItems.AddRange(new ToolStripItem[]
+            {
                 themeMenu,
                 fpsMaxLimitMenu,
                 launchAtStartupMenu
-            );
-
-            var endlessGameMenu = new CustomToolStripMenuItem("Endless Game");
-            endlessGameMenu.Click += (sender, e) => ShowOrActivateGameWindow(getSystemTheme);
+            });
 
             var appVersionMenu = new CustomToolStripMenuItem(
                 $"{Application.ProductName} v{Application.ProductVersion}"
@@ -116,38 +110,101 @@ namespace RunCat365
                 Enabled = false
             };
 
-            var repositoryMenu = new CustomToolStripMenuItem("Open Repository");
+            var repositoryMenu = new CustomToolStripMenuItem("➡️仓库");
             repositoryMenu.Click += (sender, e) => openRepository();
 
-            var informationMenu = new CustomToolStripMenuItem("Information");
-            informationMenu.DropDownItems.AddRange(
+            var informationMenu = new CustomToolStripMenuItem("关于");
+            informationMenu.DropDownItems.AddRange(new ToolStripItem[]
+            {
                 appVersionMenu,
                 repositoryMenu
-            );
+            });
 
-            var exitMenu = new CustomToolStripMenuItem("Exit");
+            var exitMenu = new CustomToolStripMenuItem("退出");
             exitMenu.Click += (sender, e) => onExit();
 
             var contextMenuStrip = new ContextMenuStrip(new Container());
-            contextMenuStrip.Items.AddRange(
+            contextMenuStrip.Items.AddRange(new ToolStripItem[]
+            {
                 systemInfoMenu,
                 new ToolStripSeparator(),
                 runnersMenu,
                 new ToolStripSeparator(),
                 settingsMenu,
                 informationMenu,
-                endlessGameMenu,
                 new ToolStripSeparator(),
                 exitMenu
-            );
+            });
             contextMenuStrip.Renderer = new ContextMenuRenderer();
 
             SetIcons(getSystemTheme(), getManualTheme(), getRunner());
 
             notifyIcon.Text = "-";
-            notifyIcon.Icon = icons[0];
+            notifyIcon.Icon = icons.Count > 0 ? icons[0] : null;
             notifyIcon.Visible = true;
             notifyIcon.ContextMenuStrip = contextMenuStrip;
+        }
+
+        /// <summary>
+        /// 动态刷新角色菜单
+        /// </summary>
+        private void RefreshRunnersMenu()
+        {
+            runnersMenu.DropDownItems.Clear();
+
+            var runners = RunnerManager.GetAvailableRunners();
+            var currentRunner = getRunner();
+            var themeName = GetThemeName();
+
+            foreach (var runnerName in runners)
+            {
+                var displayName = RunnerManager.GetDisplayName(runnerName);
+                var menuItem = new CustomToolStripMenuItem(displayName)
+                {
+                    Checked = (runnerName == currentRunner),
+                    Tag = runnerName
+                };
+
+                // 设置缩略图
+                var thumbnail = RunnerManager.GetThumbnail(runnerName, themeName);
+                if (thumbnail != null)
+                {
+                    menuItem.Image = thumbnail;
+                }
+
+                menuItem.Click += (sender, e) =>
+                {
+                    if (sender is ToolStripMenuItem item && item.Tag is string selectedRunner)
+                    {
+                        // 更新选中状态
+                        foreach (ToolStripMenuItem child in runnersMenu.DropDownItems)
+                        {
+                            child.Checked = false;
+                        }
+                        item.Checked = true;
+
+                        setRunner(selectedRunner);
+                        SetIcons(getSystemTheme(), getManualTheme(), selectedRunner);
+                    }
+                };
+
+                runnersMenu.DropDownItems.Add(menuItem);
+            }
+
+            if (runners.Count == 0)
+            {
+                var emptyItem = new CustomToolStripMenuItem("(无可用角色)")
+                {
+                    Enabled = false
+                };
+                runnersMenu.DropDownItems.Add(emptyItem);
+            }
+        }
+
+        private string GetThemeName()
+        {
+            var actualTheme = getManualTheme() == Theme.System ? getSystemTheme() : getManualTheme();
+            return actualTheme == Theme.Light ? "light" : "dark";
         }
 
         private static void HandleMenuItemSelection<T>(
@@ -170,34 +227,30 @@ namespace RunCat365
             }
         }
 
-        private static Bitmap? GetRunnerThumbnailBitmap(Theme systemTheme, Runner runner)
+        internal void SetIcons(Theme systemTheme, Theme manualTheme, string runnerName)
         {
-            var iconName = $"{systemTheme.GetString()}_{runner.GetString()}_0".ToLower();
-            var obj = Resources.ResourceManager.GetObject(iconName);
-            return obj is Icon icon ? icon.ToBitmap() : null;
-        }
-
-        internal void SetIcons(Theme systemTheme, Theme manualTheme, Runner runner)
-        {
-            var prefix = (manualTheme == Theme.System ? systemTheme : manualTheme).GetString();
-            var runnerName = runner.GetString();
-            var rm = Resources.ResourceManager;
-            var capacity = runner.GetFrameNumber();
-            var list = new List<Icon>(capacity);
-            for (int i = 0; i < capacity; i++)
-            {
-                var iconName = $"{prefix}_{runnerName}_{i}".ToLower();
-                var icon = rm.GetObject(iconName);
-                if (icon is null) continue;
-                list.Add((Icon)icon);
-            }
+            var themeName = (manualTheme == Theme.System ? systemTheme : manualTheme) == Theme.Light ? "light" : "dark";
+            var list = RunnerManager.LoadIcons(runnerName, themeName);
 
             lock (iconLock)
             {
-                icons.ForEach(icon => icon.Dispose());
+                // 先保存旧图标引用
+                var oldIcons = new List<Icon>(icons);
                 icons.Clear();
                 icons.AddRange(list);
                 current = 0;
+
+                // 设置新图标后再释放旧图标
+                if (icons.Count > 0)
+                {
+                    notifyIcon.Icon = icons[0];
+                }
+
+                // 现在可以安全地释放旧图标
+                foreach (var oldIcon in oldIcons)
+                {
+                    try { oldIcon.Dispose(); } catch { }
+                }
             }
         }
 
@@ -216,32 +269,14 @@ namespace RunCat365
             {
                 MessageBox.Show(ex.Message, "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
-
-        }
-
-        private void ShowOrActivateGameWindow(Func<Theme> getSystemTheme)
-        {
-            if (endlessGameForm is null)
-            {
-                endlessGameForm = new EndlessGameForm(getSystemTheme());
-                endlessGameForm.FormClosed += (sender, e) =>
-                {
-                    endlessGameForm = null;
-                };
-                endlessGameForm.Show();
-            }
-            else
-            {
-                endlessGameForm.Activate();
-            }
         }
 
         internal void ShowBalloonTip()
         {
-            var message = "App has launched. " +
-                "If the icon is not on the taskbar, it has been omitted, " +
-                "so please move it manually and pin it.";
-            notifyIcon.ShowBalloonTip(5000, "RunCat 365", message, ToolTipIcon.Info);
+            var message = "程序已启动。" +
+                "如果图标没有显示在任务栏，可能被系统隐藏了，" +
+                "请手动将其移到任务栏并固定。";
+            notifyIcon.ShowBalloonTip(5000, "RunCat-Lite", message, ToolTipIcon.Info);
         }
 
         internal void AdvanceFrame()
@@ -291,8 +326,6 @@ namespace RunCat365
                     notifyIcon.ContextMenuStrip?.Dispose();
                     notifyIcon.Dispose();
                 }
-
-                endlessGameForm?.Dispose();
             }
         }
 

@@ -2,30 +2,33 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net9.0-windows10.0.26100.0</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
-    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
-    <AssemblyName>RunCat 365</AssemblyName>
+    <AssemblyName>RunCat-Lite</AssemblyName>
+    <RootNamespace>RunCatLite</RootNamespace>
     <ApplicationIcon>resources\app_icon.ico</ApplicationIcon>
     <Authors>Takuto Nakamura</Authors>
     <Company>Studio Kyome</Company>
-    <Description>A cute running cat animation on your taskbar.</Description>
+    <Description>A lightweight running cat animation on your taskbar.</Description>
     <Copyright>© 2022 Takuto Nakamura</Copyright>
     <PackageProjectUrl>https://kyome22.github.io/RunCat365/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/Kyome22/RunCat365</RepositoryUrl>
     <PackageTags>cpu;cat;taskbar</PackageTags>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <PackageIcon>app_icon.png</PackageIcon>
-    <Version>3.1.0</Version>
+    <Version>4.0.0</Version>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <StartupObject>RunCat365.Program</StartupObject>
+    <StartupObject>RunCatLite.Program</StartupObject>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Platforms>x64;x86;ARM64</Platforms>
     <ApplicationManifest>App.manifest</ApplicationManifest>
     <NoWarn>$(NoWarn);WFO5001</NoWarn>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <!-- Optimization settings -->
+    <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
 
   <ItemGroup>

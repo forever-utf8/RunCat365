@@ -14,7 +14,7 @@
 
 using System.Diagnostics.CodeAnalysis;
 
-namespace RunCat365
+namespace RunCatLite
 {
     enum FPSMaxLimit
     {

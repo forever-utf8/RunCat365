@@ -12,7 +12,7 @@
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 
-namespace RunCat365
+namespace RunCatLite
 {
     enum Theme
     {
@@ -27,9 +27,9 @@ namespace RunCat365
         {
             return theme switch
             {
-                Theme.System => "System",
-                Theme.Light => "Light",
-                Theme.Dark => "Dark",
+                Theme.System => "跟随系统",
+                Theme.Light => "浅色",
+                Theme.Dark => "深色",
                 _ => "",
             };
         }
