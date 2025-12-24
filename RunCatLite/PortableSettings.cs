@@ -42,13 +42,9 @@ namespace RunCatLite
 
         /// <summary>
         /// 是否为 Portable 模式
-        /// 编译时通过 MSBuild 属性 PortableMode 设置
+        /// 所有构建均为 Portable 模式，配置文件存储在程序目录
         /// </summary>
-#if PORTABLE_MODE
         public static bool IsPortable => true;
-#else
-        public static bool IsPortable => false;
-#endif
 
         /// <summary>
         /// 获取数据目录路径

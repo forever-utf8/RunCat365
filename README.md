@@ -17,10 +17,10 @@
 - 🐱 **任务栏动画** - 可爱的奔跑猫根据 CPU 负载调整速度
 - 🎨 **Windows 11 风格菜单** - 现代化圆角菜单，自动适配亮/暗主题
 - 📊 **系统监控** - 显示 CPU、内存、存储、网络使用情况
-- � **热加载角色** - 直接在 `runners/` 目录添加 APNG/GIF，无需重启
-- � **智能着色** - 单色图标自动适配系统主题
-- � **绿色便携** - 单文件运行，无需安装
-- � **低资源占用** - 使用原生 API，内存占用极低
+- 🔄 **热加载角色** - 直接在 `runners/` 目录添加 APNG/GIF，无需重启
+- 🎯 **智能着色** - 单色图标自动适配系统主题
+- 📦 **绿色便携** - 单文件运行，配置存储在程序目录
+- ⚡ **低资源占用** - 使用原生 API，内存占用极低
 
 ---
 
@@ -33,16 +33,17 @@
 ### 系统要求
 
 - Windows 10 version 19041.0 或更高
-- `portable` / `installed-self` 版本：无需安装 .NET 运行时（自包含）
-- `installed` 版本：需要安装 [.NET Desktop Runtime 9.0](https://dotnet.microsoft.com/download/dotnet/9.0)
+- `static` 版本：无需安装 .NET 运行时（自包含）
+- `dynamic` 版本：需要安装 [.NET Desktop Runtime 9.0](https://dotnet.microsoft.com/download/dotnet/9.0)
 
 ### 版本选择
 
-| 版本 | 体积 | 运行时依赖 | 配置位置 | 适用场景 |
-|------|------|-----------|----------|----------|
-| `portable` | ~110MB | 无 | 程序目录 | U盘便携、绿色版 |
-| `installed-self` | ~110MB | 无 | AppData | 固定安装 |
-| `installed` | ~1MB | 需系统 .NET | AppData | 已装 .NET 用户 |
+| 版本 | 体积 | 运行时依赖 | 适用场景 |
+|------|------|-----------|----------|
+| `static` | ~110MB | 无 | 开箱即用，推荐 |
+| `dynamic` | ~1MB | 需系统 .NET | 已装 .NET 用户 |
+
+> 所有版本均为绿色便携版，配置文件存储在程序目录下。
 
 ---
 
@@ -89,20 +90,23 @@ runners/
 ### 构建命令
 
 ```bash
-# 便携版（默认）
-./build.sh win-x64 portable
-
-# 安装版（自包含）
-./build.sh win-x64 installed-self
-
-# 安装版（需系统 .NET）
-./build.sh win-x64 installed
-
-# 构建所有平台
-./build.sh all portable
-
 # 查看帮助
 ./build.sh --help
+
+# 自包含版（默认，推荐）
+./build.sh win-x64
+
+# 依赖运行时版
+./build.sh win-x64 --dynamic
+
+# 构建所有平台（仅自包含）
+./build.sh all --static
+
+# 构建所有平台（仅依赖运行时）
+./build.sh all --dynamic
+
+# 构建所有平台 × 所有模式（笛卡尔积）
+./build.sh all
 ```
 
 ### 支持平台

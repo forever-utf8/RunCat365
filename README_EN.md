@@ -19,8 +19,8 @@ A streamlined fork of [Kyome22/RunCat365](https://github.com/Kyome22/RunCat365).
 - 📊 **System Monitoring** - Shows CPU, Memory, Storage, Network usage
 - 🔄 **Hot-reload Characters** - Add APNG/GIF to `runners/` folder, no restart needed
 - 🎯 **Smart Coloring** - Monochrome icons auto-adapt to system theme
-- 📦 **Portable** - Single executable, no installation required
-- 🚀 **Low Resource Usage** - Native APIs for minimal memory footprint
+- 📦 **Portable** - Single executable, config stored in app directory
+- ⚡ **Low Resource Usage** - Native APIs for minimal memory footprint
 
 ---
 
@@ -33,16 +33,17 @@ Download the latest version from [Releases](../../releases), extract and run `Ru
 ### System Requirements
 
 - Windows 10 version 19041.0 or higher
-- `portable` / `installed-self`: No .NET runtime required (self-contained)
-- `installed`: Requires [.NET Desktop Runtime 9.0](https://dotnet.microsoft.com/download/dotnet/9.0)
+- `static`: No .NET runtime required (self-contained)
+- `dynamic`: Requires [.NET Desktop Runtime 9.0](https://dotnet.microsoft.com/download/dotnet/9.0)
 
 ### Version Comparison
 
-| Version | Size | Runtime | Config Location | Use Case |
-|---------|------|---------|-----------------|----------|
-| `portable` | ~110MB | None | App directory | USB portable |
-| `installed-self` | ~110MB | None | AppData | Fixed install |
-| `installed` | ~1MB | System .NET | AppData | .NET users |
+| Version | Size | Runtime | Use Case |
+|---------|------|---------|----------|
+| `static` | ~110MB | None | Ready to use, recommended |
+| `dynamic` | ~1MB | System .NET | For .NET users |
+
+> All versions are portable - config files stored in app directory.
 
 ---
 
@@ -89,20 +90,23 @@ Colorful animations keep their original colors.
 ### Build Commands
 
 ```bash
-# Portable (default)
-./build.sh win-x64 portable
-
-# Installed (self-contained)
-./build.sh win-x64 installed-self
-
-# Installed (requires system .NET)
-./build.sh win-x64 installed
-
-# Build all platforms
-./build.sh all portable
-
 # Show help
 ./build.sh --help
+
+# Self-contained (default, recommended)
+./build.sh win-x64
+
+# Framework-dependent
+./build.sh win-x64 --dynamic
+
+# Build all platforms (self-contained only)
+./build.sh all --static
+
+# Build all platforms (framework-dependent only)
+./build.sh all --dynamic
+
+# Build all platforms × all modes (Cartesian product)
+./build.sh all
 ```
 
 ### Supported Platforms

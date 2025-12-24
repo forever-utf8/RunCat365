@@ -36,12 +36,7 @@
     <!-- Embed config into exe, don't generate separate .dll.config file -->
     <GenerateAppConfigFileForPublish>false</GenerateAppConfigFileForPublish>
 
-    <!-- Portable Mode: default to true for backward compatibility -->
-    <PortableMode Condition="'$(PortableMode)' == ''">true</PortableMode>
-  </PropertyGroup>
-
-  <!-- Define PORTABLE_MODE constant when PortableMode is true -->
-  <PropertyGroup Condition="'$(PortableMode)' == 'true'">
+    <!-- Always portable mode: config files in program directory -->
     <DefineConstants>$(DefineConstants);PORTABLE_MODE</DefineConstants>
   </PropertyGroup>
 

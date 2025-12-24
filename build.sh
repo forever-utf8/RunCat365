@@ -2,10 +2,7 @@
 # RunCat-Lite Podman Build Script
 # 零宿主机依赖，零污染，编译产物输出到 dist/
 #
-# 支持三种构建模式：
-# 1. portable (默认): 自包含 + 配置文件在程序运行目录
-# 2. installed: 依赖系统 .NET Desktop Runtime + 配置在 AppData
-# 3. installed-self: 自包含 + 配置在 AppData
+# 默认构建为自包含 (static)，指定 --dynamic 则依赖外部 .NET Runtime
 
 set -e
 
@@ -20,13 +17,6 @@ declare -A PLATFORMS=(
     ["win-x64"]="Windows x64"
     ["win-x86"]="Windows x86"
     ["win-arm64"]="Windows ARM64"
-)
-
-# 构建模式配置
-declare -A BUILD_MODES=(
-    ["portable"]="自包含，配置在程序目录"
-    ["installed"]="依赖系统 .NET，配置在 AppData"
-    ["installed-self"]="自包含，配置在 AppData"
 )
 
 # 颜色输出
@@ -52,6 +42,36 @@ log_step() {
     echo -e "${CYAN}[STEP]${NC} $1"
 }
 
+# 显示帮助信息
+show_help() {
+    echo "Usage: $0 <PLATFORM> [--dynamic|--static]"
+    echo ""
+    echo "PLATFORM (必选):"
+    echo "  win-x64    Windows x64 (Intel/AMD)"
+    echo "  win-x86    Windows x86 (32位)"
+    echo "  win-arm64  Windows ARM64"
+    echo "  all        构建所有平台"
+    echo ""
+    echo "OPTIONS:"
+    echo "  --static   自包含编译 (默认，无需安装 .NET Runtime)"
+    echo "  --dynamic  依赖外部 .NET Desktop Runtime ${DOTNET_VERSION}"
+    echo ""
+    echo "当 PLATFORM=all 时："
+    echo "  不指定模式  → 构建所有平台 × 所有模式（笛卡尔积）"
+    echo "  指定 --static  → 仅构建所有平台的自包含版本"
+    echo "  指定 --dynamic → 仅构建所有平台的依赖运行时版本"
+    echo ""
+    echo "Examples:"
+    echo "  $0 win-x64              # 自包含 win-x64"
+    echo "  $0 win-x64 --dynamic    # 依赖运行时 win-x64"
+    echo "  $0 all                  # 所有平台 × 所有模式"
+    echo "  $0 all --static         # 所有平台，仅自包含"
+    echo "  $0 all --dynamic        # 所有平台，仅依赖运行时"
+    echo ""
+    echo "配置文件位置: <程序目录>/config.json"
+    exit 0
+}
+
 # 检查 podman 是否可用
 check_podman() {
     if ! command -v podman &> /dev/null; then
@@ -62,9 +82,11 @@ check_podman() {
 }
 
 # 构建函数
+# $1: RID (runtime identifier)
+# $2: SELF_CONTAINED (true/false)
 build_platform() {
     local RID=$1
-    local BUILD_MODE=$2
+    local SELF_CONTAINED=$2
     local PLATFORM_DESC="${PLATFORMS[$RID]}"
 
     # 从 csproj 中提取版本号
@@ -73,23 +95,20 @@ build_platform() {
         VERSION="1.0.0"
     fi
 
-    # 根据构建模式确定输出目录名称
+    # 根据自包含模式确定输出目录后缀
     local MODE_SUFFIX=""
-    case "${BUILD_MODE}" in
-        "portable")
-            MODE_SUFFIX="_portable"
-            ;;
-        "installed")
-            MODE_SUFFIX="_installed"
-            ;;
-        "installed-self")
-            MODE_SUFFIX="_installed-self"
-            ;;
-    esac
+    local MODE_DESC=""
+    if [[ "${SELF_CONTAINED}" == "true" ]]; then
+        MODE_SUFFIX="_static"
+        MODE_DESC="自包含"
+    else
+        MODE_SUFFIX="_dynamic"
+        MODE_DESC="依赖 .NET Runtime"
+    fi
 
     local OUTPUT_DIR="${OUTPUT_BASE}/${PROJECT_NAME}_${RID}_net${DOTNET_VERSION}_v${VERSION}${MODE_SUFFIX}"
 
-    log_step "开始构建: ${PLATFORM_DESC} (${RID}) - ${BUILD_MODES[$BUILD_MODE]}"
+    log_step "开始构建: ${PLATFORM_DESC} (${RID}) - ${MODE_DESC}"
 
     # 创建输出目录
     mkdir -p "${OUTPUT_DIR}"
@@ -97,25 +116,6 @@ build_platform() {
     # 创建持久化的 NuGet 缓存目录
     local CACHE_DIR="${PWD}/.build-cache"
     mkdir -p "${CACHE_DIR}/nuget" "${CACHE_DIR}/dotnet"
-
-    # 根据构建模式确定参数
-    local SELF_CONTAINED="true"
-    local PORTABLE_MODE="true"
-
-    case "${BUILD_MODE}" in
-        "portable")
-            SELF_CONTAINED="true"
-            PORTABLE_MODE="true"
-            ;;
-        "installed")
-            SELF_CONTAINED="false"
-            PORTABLE_MODE="false"
-            ;;
-        "installed-self")
-            SELF_CONTAINED="true"
-            PORTABLE_MODE="false"
-            ;;
-    esac
 
     # 使用 podman 运行 .NET SDK 容器进行编译
     # 使用 --userns=keep-id 保持当前用户权限，避免产物归root所有
@@ -145,18 +145,15 @@ build_platform() {
             -p:EnableWindowsTargeting=true \
             -p:DebugType=None \
             -p:DebugSymbols=false \
-            -p:PortableMode="${PORTABLE_MODE}" \
             -p:BaseIntermediateOutputPath=/tmp/obj/ \
             -p:BaseOutputPath=/tmp/bin/
 
     # 创建版本信息文件
     cat > "${OUTPUT_DIR}/BUILD_INFO.txt" <<EOF
 Project: ${PROJECT_NAME}
-Build Mode: ${BUILD_MODE} (${BUILD_MODES[$BUILD_MODE]})
 Target Runtime: ${RID}
 .NET Version: ${DOTNET_VERSION}
 Self-Contained: ${SELF_CONTAINED}
-Portable Mode: ${PORTABLE_MODE}
 Build Time: $(date -Iseconds)
 Build Host: $(hostname)
 EOF
@@ -185,13 +182,6 @@ EOF
     fi
 }
 
-# 清理旧的构建产物
-clean_build() {
-    log_warn "清理 ${PROJECT_DIR}/bin 和 ${PROJECT_DIR}/obj 目录..."
-    rm -rf "${PROJECT_DIR}/bin" "${PROJECT_DIR}/obj"
-    log_info "清理完成"
-}
-
 # 主函数
 main() {
     echo "=========================================="
@@ -199,45 +189,70 @@ main() {
     echo "=========================================="
     echo ""
 
+    # 无参数时显示帮助
+    if [[ $# -eq 0 ]]; then
+        show_help
+    fi
+
+    # 检查帮助参数
+    if [[ "${1:-}" == "-h" ]] || [[ "${1:-}" == "--help" ]]; then
+        show_help
+    fi
+
     check_podman
 
     # 解析参数
-    local PLATFORM="${1:-win-x64}"
-    local BUILD_MODE="${2:-portable}"
-    local DO_CLEAN="${3:-}"
+    local PLATFORM="$1"
+    local MODE="${2:-}"
 
-    # 检查是否是清理命令
-    if [[ "${PLATFORM}" == "--clean" ]]; then
-        clean_build
-        exit 0
-    fi
-
-    if [[ "${DO_CLEAN}" == "--clean" ]] || [[ "${BUILD_MODE}" == "--clean" ]]; then
-        clean_build
-        if [[ "${BUILD_MODE}" == "--clean" ]]; then
-            BUILD_MODE="portable"
-        fi
-    fi
-
-    # 验证构建模式
-    if [[ -z "${BUILD_MODES[$BUILD_MODE]}" ]]; then
-        log_error "不支持的构建模式: ${BUILD_MODE}"
-        log_info "支持的模式: ${!BUILD_MODES[*]}"
+    # 验证平台参数
+    if [[ "${PLATFORM}" != "all" ]] && [[ -z "${PLATFORMS[$PLATFORM]:-}" ]]; then
+        log_error "不支持的平台: ${PLATFORM}"
+        log_info "支持的平台: ${!PLATFORMS[*]} all"
         exit 1
     fi
 
+    # 验证模式参数
+    if [[ -n "${MODE}" ]] && [[ "${MODE}" != "--static" ]] && [[ "${MODE}" != "--dynamic" ]]; then
+        log_error "不支持的模式: ${MODE}"
+        log_info "支持的模式: --static (默认), --dynamic"
+        exit 1
+    fi
+
+    # 执行构建
     if [[ "${PLATFORM}" == "all" ]]; then
-        for RID in "${!PLATFORMS[@]}"; do
-            build_platform "${RID}" "${BUILD_MODE}"
-            echo ""
-        done
-    else
-        if [[ -z "${PLATFORMS[$PLATFORM]}" ]]; then
-            log_error "不支持的平台: ${PLATFORM}"
-            log_info "支持的平台: ${!PLATFORMS[*]}"
-            exit 1
+        if [[ -z "${MODE}" ]]; then
+            # 笛卡尔积：所有平台 × 所有模式
+            log_info "构建所有平台 × 所有模式 (笛卡尔积)"
+            for RID in "${!PLATFORMS[@]}"; do
+                build_platform "${RID}" "true"   # static
+                echo ""
+                build_platform "${RID}" "false"  # dynamic
+                echo ""
+            done
+        elif [[ "${MODE}" == "--static" ]]; then
+            # 所有平台，仅自包含
+            log_info "构建所有平台 (仅自包含)"
+            for RID in "${!PLATFORMS[@]}"; do
+                build_platform "${RID}" "true"
+                echo ""
+            done
+        else
+            # 所有平台，仅依赖运行时
+            log_info "构建所有平台 (仅依赖运行时)"
+            for RID in "${!PLATFORMS[@]}"; do
+                build_platform "${RID}" "false"
+                echo ""
+            done
         fi
-        build_platform "${PLATFORM}" "${BUILD_MODE}"
+    else
+        # 单平台构建
+        if [[ "${MODE}" == "--dynamic" ]]; then
+            build_platform "${PLATFORM}" "false"
+        else
+            # 默认自包含
+            build_platform "${PLATFORM}" "true"
+        fi
     fi
 
     echo ""
@@ -245,38 +260,5 @@ main() {
     log_info "产物目录: ${OUTPUT_BASE}/"
     ls -la "${OUTPUT_BASE}/"
 }
-
-# 显示帮助
-if [[ "${1:-}" == "-h" ]] || [[ "${1:-}" == "--help" ]]; then
-    echo "Usage: $0 [PLATFORM] [BUILD_MODE] [--clean]"
-    echo ""
-    echo "PLATFORM:"
-    echo "  win-x64    Windows x64 (默认)"
-    echo "  win-x86    Windows x86"
-    echo "  win-arm64  Windows ARM64"
-    echo "  all        构建所有平台"
-    echo ""
-    echo "BUILD_MODE:"
-    echo "  portable       自包含 + 配置在程序目录 (默认/绿色版)"
-    echo "  installed      依赖系统 .NET + 配置在 AppData (需安装 .NET Runtime)"
-    echo "  installed-self 自包含 + 配置在 AppData (安装版)"
-    echo ""
-    echo "Options:"
-    echo "  --clean    清理构建目录"
-    echo ""
-    echo "Examples:"
-    echo "  $0                           # 构建 win-x64 portable"
-    echo "  $0 win-x64 portable          # 构建 win-x64 portable (绿色版)"
-    echo "  $0 win-x64 installed         # 构建 win-x64 installed (需系统 .NET)"
-    echo "  $0 win-x64 installed-self    # 构建 win-x64 installed-self (安装版)"
-    echo "  $0 all portable              # 构建所有平台 portable"
-    echo "  $0 --clean                   # 仅清理"
-    echo "  $0 win-x64 portable --clean  # 清理后构建"
-    echo ""
-    echo "配置文件位置:"
-    echo "  portable:       <程序目录>/config.json"
-    echo "  installed/self: %APPDATA%/RunCat-Lite/<版本>/config.json"
-    exit 0
-fi
 
 main "$@"
