@@ -32,72 +32,106 @@ namespace RunCatLite
     /// </summary>
     internal static class ImageColorProcessor
     {
-        // 单色检测阈值
-        private const float SATURATION_THRESHOLD = 0.15f;  // 饱和度低于此值视为灰度
-        private const float HUE_VARIANCE_THRESHOLD = 30f;  // 色相方差低于此值视为单色
-        private const int SAMPLE_PIXELS = 500;             // 采样像素数量
+        // ============================================================
+        // 单色检测阈值（调节这些值可以改变彩色/单色的判定）
+        // 当前设置为"极端敏感"，只有真正的灰度图才会被判定为单色
+        // ============================================================
+
+        // 饱和度阈值：平均饱和度低于此值视为灰度图像
+        // 值越小，越容易识别为彩色；值越大，越容易识别为单色
+        // 范围: 0.0 - 1.0
+        // 0.02 = 极端敏感，几乎只有纯灰度才是单色
+        private const float SATURATION_THRESHOLD = 0.02f;
+
+        // 色相方差阈值：色相方差低于此值视为单色（同一颜色）
+        // 值越小，越容易识别为彩色；值越大，越容易识别为单色
+        // 范围: 0 - 180
+        // 5 = 极端敏感，颜色稍有变化就是彩色
+        private const float HUE_VARIANCE_THRESHOLD = 5f;
+
+        // 透明度阈值：Alpha 值高于此值的像素才纳入计算
+        // 低于此值的像素视为透明，完全忽略
+        private const int ALPHA_THRESHOLD = 30;
+
+        // 彩色像素比例阈值：彩色像素超过此比例即视为彩色图像
+        // 值越小，越容易识别为彩色
+        // 0.01 = 只要有 1% 的彩色像素就是彩色图像
+        private const float COLOR_PIXEL_RATIO_THRESHOLD = 0.01f;
+
+        // 单个像素的饱和度阈值：超过此值视为"有颜色"的像素
+        // 0.05 = 非常敏感，略有点颜色就算
+        private const float PIXEL_SATURATION_THRESHOLD = 0.05f;
+        // ============================================================
 
         /// <summary>
         /// 检测图像是否为单色（灰度或接近单一颜色）
+        /// 全图扫描，透明像素不计入统计
         /// </summary>
         internal static bool IsMonochrome(Bitmap bitmap)
         {
-            var nonTransparentPixels = new List<Color>();
-            var random = new Random(42); // 固定种子确保可重复性
+            int totalOpaquePixels = 0;      // 不透明像素总数
+            int coloredPixels = 0;          // 有颜色的像素数
+            float totalSaturation = 0;      // 总饱和度
+            var hues = new List<float>();   // 有颜色像素的色相列表
 
-            // 采样非透明像素
-            int sampleCount = 0;
-            int maxAttempts = SAMPLE_PIXELS * 3;
-            int attempts = 0;
-
-            while (sampleCount < SAMPLE_PIXELS && attempts < maxAttempts)
+            // 全图扫描
+            for (int y = 0; y < bitmap.Height; y++)
             {
-                int x = random.Next(bitmap.Width);
-                int y = random.Next(bitmap.Height);
-                var pixel = bitmap.GetPixel(x, y);
-
-                if (pixel.A > 20) // 忽略几乎透明的像素
+                for (int x = 0; x < bitmap.Width; x++)
                 {
-                    nonTransparentPixels.Add(pixel);
-                    sampleCount++;
-                }
-                attempts++;
-            }
+                    var pixel = bitmap.GetPixel(x, y);
 
-            if (nonTransparentPixels.Count < 10)
-                return true; // 几乎透明的图像视为单色
+                    // 跳过透明像素
+                    if (pixel.A <= ALPHA_THRESHOLD)
+                        continue;
 
-            // 计算平均饱和度
-            float totalSaturation = 0;
-            var hues = new List<float>();
+                    totalOpaquePixels++;
+                    float saturation = pixel.GetSaturation();
+                    totalSaturation += saturation;
 
-            foreach (var pixel in nonTransparentPixels)
-            {
-                float saturation = pixel.GetSaturation();
-                totalSaturation += saturation;
-
-                if (saturation > 0.1f) // 只有有颜色的像素才计算色相
-                {
-                    hues.Add(pixel.GetHue());
+                    // 检测是否为有颜色的像素
+                    if (saturation > PIXEL_SATURATION_THRESHOLD)
+                    {
+                        coloredPixels++;
+                        hues.Add(pixel.GetHue());
+                    }
                 }
             }
 
-            float avgSaturation = totalSaturation / nonTransparentPixels.Count;
-
-            // 如果平均饱和度很低，视为灰度图像
-            if (avgSaturation < SATURATION_THRESHOLD)
+            // 如果几乎没有不透明像素，视为单色
+            if (totalOpaquePixels < 10)
                 return true;
 
-            // 如果有颜色，检查色相是否集中在同一区域
-            if (hues.Count > 0)
+            // 方法1: 检查彩色像素比例
+            float colorRatio = (float)coloredPixels / totalOpaquePixels;
+            if (colorRatio > COLOR_PIXEL_RATIO_THRESHOLD)
             {
-                // 计算色相的标准差（考虑色相的环形性质）
-                float hueVariance = CalculateCircularVariance(hues);
-                if (hueVariance < HUE_VARIANCE_THRESHOLD)
-                    return true; // 色相非常集中，视为单色
+                // 有足够多的彩色像素，再检查色相是否分散
+                if (hues.Count > 1)
+                {
+                    float hueVariance = CalculateCircularVariance(hues);
+                    // 如果色相分散，肯定是彩色
+                    if (hueVariance > HUE_VARIANCE_THRESHOLD)
+                        return false; // 彩色图像
+                }
+                // 色相集中但有颜色 -> 单色（如纯红色图标）
+                // 但如果饱和度够高，还是当彩色处理（保留原色）
+                float avgSaturation = totalSaturation / totalOpaquePixels;
+                if (avgSaturation > 0.3f)
+                    return false; // 高饱和度单色，保留原色
             }
 
-            return false;
+            // 方法2: 检查平均饱和度
+            float avgSat = totalSaturation / totalOpaquePixels;
+            if (avgSat > SATURATION_THRESHOLD)
+            {
+                // 有饱和度，但彩色像素不多，可能是低饱和度的彩色
+                // 再宽松一点，只要有一定饱和度就算彩色
+                return false;
+            }
+
+            // 真正的灰度图像
+            return true;
         }
 
         /// <summary>
@@ -125,23 +159,24 @@ namespace RunCatLite
 
         /// <summary>
         /// 获取图像的主要亮度（用于确定是深色还是浅色图像）
+        /// 全图扫描，透明像素不计入统计
         /// </summary>
         internal static float GetAverageBrightness(Bitmap bitmap)
         {
             float totalBrightness = 0;
             int count = 0;
 
-            var random = new Random(42);
-            for (int i = 0; i < SAMPLE_PIXELS; i++)
+            for (int y = 0; y < bitmap.Height; y++)
             {
-                int x = random.Next(bitmap.Width);
-                int y = random.Next(bitmap.Height);
-                var pixel = bitmap.GetPixel(x, y);
-
-                if (pixel.A > 20)
+                for (int x = 0; x < bitmap.Width; x++)
                 {
-                    totalBrightness += pixel.GetBrightness();
-                    count++;
+                    var pixel = bitmap.GetPixel(x, y);
+
+                    if (pixel.A > ALPHA_THRESHOLD)
+                    {
+                        totalBrightness += pixel.GetBrightness();
+                        count++;
+                    }
                 }
             }
 

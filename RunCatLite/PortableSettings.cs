@@ -28,11 +28,6 @@ namespace RunCatLite
         public const string Name = "RunCat-Lite";
 
         /// <summary>
-        /// 应用名称（无短线版本，用于命名空间等）
-        /// </summary>
-        public const string NameNoHyphen = "RunCatLite";
-
-        /// <summary>
         /// 获取应用版本
         /// </summary>
         public static string Version
@@ -104,8 +99,7 @@ namespace RunCatLite
         private static PortableSettings? _instance;
 
         // 配置项
-        public string Runner { get; set; } = "cat";
-        public string Theme { get; set; } = "";
+        public string Runner { get; set; } = "";  // 空字符串表示由程序自动选择第一个
         public string FPSMaxLimit { get; set; } = "FPS40";
         public bool FirstLaunch { get; set; } = true;
 
@@ -192,7 +186,6 @@ namespace RunCatLite
         {
             var loaded = Load();
             Runner = loaded.Runner;
-            Theme = loaded.Theme;
             FPSMaxLimit = loaded.FPSMaxLimit;
             FirstLaunch = loaded.FirstLaunch;
         }

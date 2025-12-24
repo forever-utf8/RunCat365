@@ -29,14 +29,11 @@ namespace RunCatLite
         private readonly Func<string> getRunner;
         private readonly Action<string> setRunner;
         private readonly Func<Theme> getSystemTheme;
-        private readonly Func<Theme> getManualTheme;
 
         internal ContextMenuManager(
             Func<string> getRunner,
             Action<string> setRunner,
             Func<Theme> getSystemTheme,
-            Func<Theme> getManualTheme,
-            Action<Theme> setManualTheme,
             Func<FPSMaxLimit> getFPSMaxLimit,
             Action<FPSMaxLimit> setFPSMaxLimit,
             Func<bool> getLaunchAtStartup,
@@ -48,31 +45,12 @@ namespace RunCatLite
             this.getRunner = getRunner;
             this.setRunner = setRunner;
             this.getSystemTheme = getSystemTheme;
-            this.getManualTheme = getManualTheme;
 
             systemInfoMenu.Text = "-\n-\n-\n-\n-";
             systemInfoMenu.Enabled = false;
 
             // 角色菜单
             runnersMenu = new CustomToolStripMenuItem("角色");
-
-            var themeMenu = new CustomToolStripMenuItem("外观");
-            themeMenu.SetupSubMenusFromEnum<Theme>(
-                t => t.GetString(),
-                (parent, sender, e) =>
-                {
-                    HandleMenuItemSelection<Theme>(
-                        parent,
-                        sender,
-                        (string? s, out Theme t) => Enum.TryParse(s, out t),
-                        t => setManualTheme(t)
-                    );
-                    // 主题切换时重新加载图标（单色图标需要根据主题重新着色）
-                    SetIcons(getRunner());
-                },
-                t => getManualTheme() == t,
-                _ => null
-            );
 
             var fpsMaxLimitMenu = new CustomToolStripMenuItem("最大帧率");
             fpsMaxLimitMenu.SetupSubMenusFromEnum<FPSMaxLimit>(
@@ -102,7 +80,6 @@ namespace RunCatLite
             var settingsMenu = new CustomToolStripMenuItem("设置");
             settingsMenu.DropDownItems.AddRange(new ToolStripItem[]
             {
-                themeMenu,
                 fpsMaxLimitMenu,
                 launchAtStartupMenu,
                 new ToolStripSeparator(),
@@ -164,8 +141,7 @@ namespace RunCatLite
         /// </summary>
         internal void UpdateMenuRenderer()
         {
-            var actualTheme = getManualTheme() == Theme.System ? getSystemTheme() : getManualTheme();
-            var isDark = actualTheme == Theme.Dark;
+            var isDark = getSystemTheme() == Theme.Dark;
             contextMenuStrip.Renderer = new ModernMenuRenderer(isDark);
         }
 
@@ -225,12 +201,11 @@ namespace RunCatLite
         }
 
         /// <summary>
-        /// 获取当前是否为暗色主题
+        /// 获取当前是否为暗色主题（直接使用系统主题）
         /// </summary>
         private bool IsDarkTheme()
         {
-            var actualTheme = getManualTheme() == Theme.System ? getSystemTheme() : getManualTheme();
-            return actualTheme == Theme.Dark;
+            return getSystemTheme() == Theme.Dark;
         }
 
         private static void HandleMenuItemSelection<T>(

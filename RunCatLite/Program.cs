@@ -13,7 +13,6 @@
 //    limitations under the License.
 
 using Microsoft.Win32;
-using RunCatLite.Properties;
 using System.Diagnostics;
 using FormsTimer = System.Windows.Forms.Timer;
 
@@ -54,7 +53,6 @@ namespace RunCatLite
         private readonly FormsTimer fetchTimer;
         private readonly FormsTimer animateTimer;
         private string runner = "";
-        private Theme manualTheme = Theme.System;
         private FPSMaxLimit fpsMaxLimit = FPSMaxLimit.FPS40;
         private int fetchCounter = 5;
 
@@ -67,7 +65,6 @@ namespace RunCatLite
             {
                 runner = RunnerManager.GetDefaultRunner();
             }
-            _ = Enum.TryParse(PortableSettings.Default.Theme, out manualTheme);
             _ = Enum.TryParse(PortableSettings.Default.FPSMaxLimit, out fpsMaxLimit);
 
             SystemEvents.UserPreferenceChanged += new UserPreferenceChangedEventHandler(UserPreferenceChanged);
@@ -82,8 +79,6 @@ namespace RunCatLite
                 () => runner,
                 r => ChangeRunner(r),
                 () => GetSystemTheme(),
-                () => manualTheme,
-                t => ChangeManualTheme(t),
                 () => fpsMaxLimit,
                 f => ChangeFPSMaxLimit(f),
                 () => launchAtStartupManager.GetStartup(),
@@ -162,13 +157,7 @@ namespace RunCatLite
             PortableSettings.Default.Save();
         }
 
-        private void ChangeManualTheme(Theme t)
-        {
-            manualTheme = t;
-            PortableSettings.Default.Theme = manualTheme.ToString();
-            PortableSettings.Default.Save();
-            contextMenuManager.UpdateMenuRenderer();
-        }
+
 
         private void ChangeFPSMaxLimit(FPSMaxLimit f)
         {

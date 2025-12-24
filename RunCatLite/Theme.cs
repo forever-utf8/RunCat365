@@ -16,22 +16,7 @@ namespace RunCatLite
 {
     enum Theme
     {
-        System,
         Light,
         Dark,
-    }
-
-    internal static class ThemeExtension
-    {
-        internal static string GetString(this Theme theme)
-        {
-            return theme switch
-            {
-                Theme.System => "跟随系统",
-                Theme.Light => "浅色",
-                Theme.Dark => "深色",
-                _ => "",
-            };
-        }
     }
 }
